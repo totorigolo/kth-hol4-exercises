@@ -1,0 +1,17 @@
+# HOL4 rules
+*.dat
+*.sig
+*.ui
+*.uo
+*Theory.sml
+.HOLMK/
+
+# LaTeX
+*.aux
+*.log
+*.synctex.gz
+*.bak
+
+# ignore old/ directories
+old/
+
