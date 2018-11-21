@@ -1,0 +1,289 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+
+\title{Background Questionnaire}
+\author{Thomas Lacroix}
+
+\usepackage{csquotes}
+\usepackage{amsmath}
+\usepackage{bm}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{amsthm}
+\usepackage{enumitem}
+\usepackage{graphviz}
+
+%\renewcommand\labelitemi{---}
+
+\newcommand{\hr}{\begin{center}\rule{\textwidth}{.4pt}\end{center}}
+
+\newcommand{\inangles}[1]{\langle #1 \rangle}
+
+\newcommand{\eqdef}{\overset{def}{=}}
+\newcommand{\Ra}{\Rightarrow}
+
+\begin{document}
+
+\maketitle
+
+\section{Functional programming}
+
+\begin{verbatim}
+fun SNOC x [] = [x]
+  | SNOC x (y::ys) = y::(SNOC x ys)
+\end{verbatim}
+
+\subsubsection*{1.1. What is the result of \texttt{SNOC 5 [7,3,2]}?}
+
+\texttt{SNOC} appends a number to a list.
+\begin{verbatim}
+-> [7,3,2,5]
+\end{verbatim}
+
+\subsubsection*{1.2. Describe informally (and very briefly) what the function \texttt{SNOC} does.}
+
+First, while the list (\texttt{y}, second argument) isn't empty, it recursively calls itself without \texttt{y}'s head. Then, adds \texttt{x} to the empty list and puts back \texttt{y}'s content.
+
+\subsubsection*{2. Write a functional program \texttt{APPEND} that appends two lists. Try to use SML notation. \texttt{APPEND} should satisfy the following example behaviours:}
+
+\begin{itemize}
+\item \texttt{APPEND [1,2,3] [4,5] = [1,2,3,4,5]}
+\item \texttt{APPEND [] [1] = [1]}
+\end{itemize}
+
+\begin{verbatim}
+fun APPEND [] ys = ys
+  | APPEND x::xs ys = x::(APPEND xs ys)
+\end{verbatim}
+
+\subsubsection*{3. What is tail-recursion and why is it important for functional programming?}
+
+It is the ability to recursively call a function an infinite amount of time without allocating memory (stack frame), if the recursive call is the last instruction (the returned value) of the function. It's important because, among else, it enables immutability.
+
+\subsubsection*{4. Write a tail-recursive version of \texttt{APPEND}.}
+
+It is, I think.
+
+\section{Induction proofs}
+
+\subsubsection*{1. Prove that the following method to calculate the sum of the first $n$ natural numbers is correct (notice $0 \not\in \mathbb{N}$):}
+
+\begin{equation}
+\label{eq:guauss_sum}
+\forall{n}\in\mathbb{N}, \sum_{1 \leq i \leq n}{i} = \frac{n \cdot \left(n+1\right)}{2}
+\end{equation}
+
+\begin{proof}
+For $n=1$, this is immediate. Then, we need to prove that
+\begin{equation}
+\label{eq:guauss_sum_np1}
+\forall{n}\in\mathbb{N}, \sum_{1 \leq i \leq n + 1}{i} = \frac{\left(n+1\right) \left(n+2\right)}{2}
+\end{equation}
+given (\ref{eq:guauss_sum}). Let $n \in \mathbb{N}$:
+\begin{equation*}
+\frac{n\left(n+1\right)}{2}+\left(n+1\right)
+= \left(n+1\right) \left(\frac{n}{2}+1\right)
+= \left(n+1\right) \frac{n+2}{2}
+= \frac{\left(n+1\right) \left(n+2\right)}{2}
+\end{equation*}
+\end{proof}
+
+\subsubsection*{Prove that $\forall$x l. \texttt{LENGTH (SNOC x 1) = LENGTH l + 1} holds for the function \texttt{SNOC} given above. You can use arithmetic facts and the following properties of \texttt{LENGTH}:}
+
+\begin{itemize}
+\item \texttt{LENGTH [] = 0}
+\item \texttt{$\forall$l x xs.~(x::xs)~++~l = x~::~(xs~++~l)}
+\end{itemize}
+
+If we use the notation \texttt{++} for list concatenation, then we can write \texttt{SNOC x l = [x] ++ l}. Then, the property is immediate.
+
+\begin{proof}
+More formally, we can prove it by induction. With \texttt{l} the empty list, it is immediate that \texttt{LENGTH (SNOC x []) = LENGTH [x] = 1 = LENGTH 0 + 1}. We'll use \texttt{l} containing one element as the base case for this proof. By definition, we immediately have:
+\begin{equation}
+\forall \texttt{x y. SNOC x [y]} \eqdef \texttt{y::(SNOC x [])} \eqdef \texttt{y::[x] = [y,x]}
+\end{equation}
+whose length is 2.\\
+
+Then, for the induction step, we have to show (because we've covered the empty \texttt{l} case)
+\begin{equation}
+\label{eq:len-snoc-np1}
+\forall \texttt{x y ys. LENGTH (SNOC x y::ys) = LENGTH y::ys + 1}
+\end{equation}
+given
+\begin{equation}
+\label{eq:len-snoc-n}
+\forall \texttt{x ys. LENGTH (SNOC x ys) = LENGTH ys + 1}
+\end{equation}\\
+
+Starting from (\ref{eq:len-snoc-np1}):
+\begin{align*}
+\texttt{LENGTH (SNOC x y::ys)}
+&= \texttt{LENGTH (y::(SNOC x ys))} \\
+&= \texttt{LENGTH (SNOC x ys) + 1} \\
+&= \text{\{ using (\ref{eq:len-snoc-n}) \}} \\
+&= \texttt{(LENGTH ys + 1) + 1} \\
+&= \texttt{LENGTH y::ys + 1} \qedhere
+\end{align*}
+\end{proof}
+
+\subsubsection*{3. Prove that \texttt{APPEND} is associative. You can use the following properties of \texttt{APPEND}. Use the notation \texttt{l1 ++ l2} for \texttt{APPEND l1 l2}.}
+
+\begin{itemize}
+\item $\forall$ \texttt{l. [] ++ l = l}
+\item $\forall$ \texttt{x xs. (x~::~xs) ++ l = x~::~(xs ++ l)}
+\end{itemize}
+
+We have to show that, $\forall$ \texttt{l1 l2 l3}:
+\begin{equation}
+\texttt{(l1 ++ l2) ++ l3 = l1 ++ (l2 ++ l3)}
+\end{equation}
+
+\textit{To show that, we can show that the left-hand side is equal to the right-hand side by ``transferring'' \texttt{l2}'s elements from the lhs to the rhs one-by-one. I don't see an easier way.}
+
+\subsubsection*{4. Which induction principles do you know? Which ones did you use above?}
+
+Apart from the induction proof, I don't know any other induction principle; or I cannot name them.
+
+\section{Logic}
+
+\subsubsection*{1. Explain briefly what's wrong with the following reasoning: ``No cat has two tails. A cat has one more tail than no cat. Therefore, a cat has three tails.''}
+
+The two occurrences of ``no cat'' don't refer to the same thing, so it's not correct to use them this way. The first one means ``it doesn't exist any cat featuring two tails'', but the second one isn't valid English (as far as I know) because it refers to an empty set as an element.
+
+\subsubsection*{2. \textit{Spartans} and \textit{Athenians}}
+
+\textbf{2.a) Formalise the relevant parts of the text above in first order logic. Model \textit{is coward} as \textit{is not brave} and \textit{is moron} as \textit{is not wise}.}\\
+
+Let's use $S(x)$ instead of $Spartan(x)$, and similarly for Athenians and for the philosophers' names.\\
+
+Then, we can formalize them as follows:
+\newcommand{\Sx}{S\left(x\right)}
+\newcommand{\Ax}{A\left(x\right)}
+\newcommand{\SD}{S\left(D\right)}
+\newcommand{\SE}{S\left(E\right)}
+\newcommand{\SP}{S\left(P\right)}
+\newcommand{\AD}{A\left(D\right)}
+\renewcommand{\AE}{A\left(E\right)}
+\newcommand{\AP}{A\left(P\right)}
+\newcommand{\B}[1]{\text{brave}\left(#1\right)}
+\newcommand{\W}[1]{\text{wise}\left(#1\right)}
+
+\begin{itemize}
+\item[(a)] $\forall{x}, \Sx\Ra\B{x} \equiv \neg\Sx\lor\B{x}$
+\item[(b)] $\forall{x}, \Ax\Ra\W{x} \equiv \neg\Ax\lor\W{x}$
+\item[(c)] $\forall{x}, \left( \Sx\lor\neg\Ax \right) \lor \left( \neg\Sx\lor\Ax \right)$
+\item[(d)] $\neg \left( \Sx\land\Ax \right)$
+\item[(e)] $\SP \Ra \neg\B{D} \equiv \neg\SP\lor\neg\B{D}$
+\item[(f)] $\SE \Ra \neg\B{D} \equiv \neg\SE\lor\neg\B{D}$
+\item[(g)] $\AD \Ra \neg\B{E} \equiv \neg\AD\lor\neg\B{E}$
+\item[(h)] $\AP \Ra \neg\W{E} \equiv \neg\AP\lor\neg\W{E}$
+\end{itemize}
+\bigskip
+
+With (c) and (d), then (a) or (b), we can simplify as follows:
+\begin{itemize}
+\item[(e)] $\neg\SP\lor\AD$
+\item[(f)] $\neg\SE\lor\AD$
+\item[(g)] $\neg\AD\lor\AE$
+\item[(h)] $\neg\AP\lor\SE$
+\end{itemize}
+\bigskip
+
+Then, to prove that Platon is from Sparta, we can add $\neg\SP$ and prove it leads to a contradiction using the resolution rule, as follows:
+\begin{equation*}
+\begin{tabular}{c}
+$\neg\SP,~\neg\SP\lor\AD,~\neg\SE\lor\AD,~\neg\AD\lor\AE,~\neg\AP\lor\SE$ \\
+\hline
+$\neg\SP,~\neg\SP\lor\AD,~\neg\SE\lor\AE,~\neg\AP\lor\SE$ \\
+\hline
+$\neg\SP,~\neg\SP\lor\AD,~\neg\SE,~\neg\AP\lor\SE$ \\
+\hline
+$\neg\SP,~\neg\SP\lor\AD,~\neg\AP$ \\
+\hline
+$\neg\SP,~\neg\AP$ \\
+\hline
+$\neg\SP,~\SP$ \\
+\end{tabular}
+\end{equation*}
+
+\subsubsection*{3. \textit{myst} function}
+
+\textbf{3.a) Which type does \textit{myst} have?}\\
+
+\textit{myst} is a predicate, because it is a function that takes two arguments of the same type and returns a boolean.\\
+
+\textbf{3.b) What concept does the type $\alpha\rightarrow\alpha\rightarrow~bool$ represent?}\\
+
+High-order functions (can I say curryfication?).\\
+
+\textbf{3.c) Translate the formula in English using as high level concepts as possible.}\\
+
+$Q$ is a restriction of $R$ which must also be $true$ when both its arguments are equals, and its $true$ area must be of one block and without holes.\\
+
+\textbf{3.d) What concept does the function \textit{myst} define?}\\
+
+It seems to defines some kind of area: it fills the gaps of the ``$true$ zone'' of the given predicate.
+
+\end{document}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
