@@ -61,17 +61,17 @@ val REVERSE_REVERSE = prove (
 
 val APPEND_NIL_SAME = prove (
   ``!l: 'a list. l ++ [] = l``,
-  Induct >> 
-  REPEAT (ASM_REWRITE_TAC[APPEND])
-  );
+  Induct >> (
+    ASM_REWRITE_TAC[APPEND]
+  ));
 
 (* Prove the associativity of APPEND, i.e. prove !l1 l2 l3. l1 ++ (l2 ++ l3) = (l1 ++ l2) ++ l3. *)
 
 val APPEND_ASSOC = prove (
   ``!l1 l2 l3: 'a list. l1 ++ (l2 ++ l3) = (l1 ++ l2) ++ l3``,
-  Induct >>
-  REPEAT (ASM_REWRITE_TAC[APPEND])
-  );
+  Induct >> (
+    ASM_REWRITE_TAC[APPEND]
+  ));
 
 (*
  * 2.3 Reverse
@@ -106,6 +106,7 @@ val REVERSE_REV_bis = prove (
     ASM_REWRITE_TAC[REVERSE_DEF] >>
     `!h l2. h::l2 = [h] ++ l2` by ASM_REWRITE_TAC[APPEND] >>
     ONCE_ASM_REWRITE_TAC[] >>
+    (* PAT_X_ASSUM ``!h. _ = _`` (fn th => ALL_TAC) *)
     REWRITE_TAC[APPEND_ASSOC, APPEND_NIL]
   ]);
 
@@ -155,6 +156,8 @@ val MAKE_CHANGE_def = Define `
     (if (c <= a ∧ 0 < a) then
       (MAP (λl. c::l) (MAKE_CHANGE cs (a - c)))
     else []) ++ (MAKE_CHANGE cs a)))`;
+
+EVAL ``MAKE_CHANGE [4;3;3;1;1;1;1;1;1] 6``;
 
 (* Prove that !cs. MAKE_CHANGE cs 0 = [[]]. *)
 
