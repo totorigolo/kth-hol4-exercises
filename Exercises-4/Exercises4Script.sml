@@ -246,7 +246,7 @@ val SUC_SUBST_ONE = store_thm ("SUC_SUBST_ONE",
   );
 *)
 
-open arithmeticTheory;
+(* open arithmeticTheory;
 val ARRAY_INDEX_INJ_NUM = store_thm ("ARRAY_INDEX_INJ_NUM",
   ``∀s. ?n. s = num2arrayIndex n``,
   REWRITE_TAC[num2arrayIndex_def] >>
@@ -274,6 +274,7 @@ val ARRAY_INDEX_INJ_NUM = store_thm ("ARRAY_INDEX_INJ_NUM",
     ]
   ]
   );
+*)
 
 (* Show a few properties *)
 (* val EMPTY_ARRAY_def = Define `EMPTY_ARRAY : 'a array = Node Leaf NONE Leaf`
@@ -355,25 +356,137 @@ val num2arrayIndex_INJ_CONTR = store_thm ("num2arrayIndex_INJ_CONTR",
     REWRITE_TAC[CONTRAPOS (snd (EQ_IMP_RULE (SPEC_ALL num2arrayIndex_INJ)))]
   ]);
 
-val LOOKUP_UPDATE_DIFF_N = store_thm ("LOOKUP_UPDATE_DIFF_N",
-  ``n ≠ m ⇒ !v a. LOOKUP (UPDATE v a n) m = LOOKUP a m``,
-  DISCH_TAC >>
+val IG_LOOKUP_UPDATE_DIFF_N = store_thm ("IG_LOOKUP_UPDATE_DIFF_N",
+  ``!n m v a. (n ≠ m ⇒ (ILOOKUP (IGUPDATE v a n) m = ILOOKUP a m))``,
+  Induct_on `n` >>
+
+
+
+
+
+
+
+
+
+
+
+
+
+	DISCH_TAC >>
   Induct_on `a` >| [
-    (* Base case *)
-    REWRITE_TAC[LOOKUP_def, UPDATE_def] >>
-    UNDISCH_TAC ``n ≠ m: num`` >>
-    SPEC_TAC (``n: num``, ``n: num``) >> SPEC_TAC (``m: num``, ``m: num``) >>
-    Induct_on `(num2arrayIndex n)` >| [
-      REPEAT STRIP_TAC >>
-      SUBGOAL_THEN ``num2arrayIndex n = []`` (fn th => ONCE_ASM_REWRITE_TAC[th]) >> METIS_TAC[] >>
-      Cases_on `(num2arrayIndex m)` >| [
-        METIS_TAC[num2arrayIndex_INJ],
-        REWRITE_TAC[IUPDATE_def, IGUPDATE_def, ILOOKUP_def] >>
-        Cases_on `h` >> REWRITE_TAC[ILOOKUP_def]
+    UNDISCH_TAC ``n ≠ m: bool list`` >>
+    (* a = Leaf *)
+    (* Cases_on `n` >| [ *)
+    Induct_on `n` >| [
+      (* n = [] *)
+      Cases_on `m` >| [
+        METIS_TAC[],
+        Cases_on `h` >> REWRITE_TAC[IGUPDATE_def, ILOOKUP_def]
+      ],
+      (* n = h::t *)
+      Cases_on `h` >| [
+        REWRITE_TAC[IGUPDATE_def]
+  
+
+        (* n = T::t *)
+        Cases_on `m` >| [
+          (* n = T::t, m = [] *)
+          REWRITE_TAC[IGUPDATE_def, ILOOKUP_def],
+          (* n = T::t, m = h::t' *)
+          cheat
+          Cases_on `h` >| [
+            DISCH_TAC >>
+            Cases_on `n ≠ T::t: bool list` >| [
+              RES_TAC >>
+              REWRITE_TAC[IGUPDATE_def] >>
+              REWRITE_TAC[Once ILOOKUP_def] >>
+              `n ≠ t: bool list` by METIS_TAC[] >>
+              ` (!v. ILOOKUP (IGUPDATE v Leaf n) t)
+              = (!v. ILOOKUP (IGUPDATE v Leaf n) (T::t))` suffices_by METIS_TAC[] >>
+              cheat,
+              FULL_SIMP_TAC list_ss [] >>
+              REPEAT (PAT_X_ASSUM ``_`` (fn _ => ALL_TAC)) >>
+              REWRITE_TAC[IGUPDATE_def, ILOOKUP_def]
+            ]
+            (*
+            * For: Cases_on `n`
+            REWRITE_TAC[IGUPDATE_def, Once ILOOKUP_def] >>
+            DISCH_TAC >>
+            `t ≠ t': bool list` by METIS_TAC[] >>
+            UNDISCH_TAC ``t ≠ t': bool list`` >>
+            PAT_X_ASSUM ``_`` (fn _ => ALL_TAC) >>
+            SUBGOAL_THEN ``ILOOKUP Leaf (T::t') = ILOOKUP Leaf t'``
+              (fn th => SUBST_TAC[th]) >- (
+              REWRITE_TAC[ILOOKUP_def] 
+            ) >>
+            *)
+          ]
+        ],
+        (* n = F::t *)
+        Cases_on `m` >| [
+          (* n = F::t, m = [] *)
+          REWRITE_TAC[IGUPDATE_def, ILOOKUP_def],
+          (* n = F::t, m = h::t' *)
+          cheat
+        ]
       ]
     ],
+    (* a = (Node a o a') *)
+    Induct_on `m` >| [
+      REPEAT STRIP_TAC >>
+      Cases_on `n` >| [
+        METIS_TAC[],
+        Cases_on `h` >| [
+          cheat,
+          cheat
+        ]
+      ],
+      REPEAT STRIP_TAC >>
+    ]
+  ]
+	);
+
+
+  (* DISCH_TAC >>
+  Induct_on `a` >| [
+    (* Base case *)
+    (*UNDISCH_TAC ``n ≠ m: bool list`` >>
+    SPEC_TAC (``n: bool list``, ``n: bool list``) >>
+    SPEC_TAC (``m: bool list``, ``m: bool list``) >>
+    *)
+    Induct_on `n` >| [
+      (* Base case *)
+      Cases_on `m` >| [
+        METIS_TAC[num2arrayIndex_INJ],
+        REWRITE_TAC[IGUPDATE_def, ILOOKUP_def] >>
+        Cases_on `h` >> REWRITE_TAC[ILOOKUP_def]
+      ],
+      (* Induction step *)
+      cheat
+    ],
     (* Induction step *)
-    Cases_on `h` >| [
+    Cases_on `n` >| [
+      SUBGOAL_THEN ``! $o. IGUPDATE v (Node a o' a') n = a`` (fn _ => ALL_TAC)
+    ]
+
+    Cases_on `n` >| [
+      REWRITE_TAC[IGUPDATE_def] >>
+      Cases_on `m` >| [
+        METIS_TAC[],
+        Cases_on `h` >> ASM_REWRITE_TAC[ILOOKUP_def]
+      ],
+      Cases_on `h` >> REWRITE_TAC[IGUPDATE_def] >| [
+        Cases_on `m` >| [
+          REWRITE_TAC[ILOOKUP_def],
+          Cases_on `h` >| [
+            REWRITE_TAC[ILOOKUP_def]
+          ]
+        ]  
+      ]
+    ]*)
+
+
+    (*Cases_on `h` >| [
       REPEAT STRIP_TAC >>
       `num2arrayIndex n = T::v` by ASM_REWRITE_TAC[],
       PAT_X_ASSUM ``_ = _::_`` (fn th => ONCE_ASM_REWRITE_TAC[th]) >>
@@ -402,7 +515,8 @@ val LOOKUP_UPDATE_DIFF_N = store_thm ("LOOKUP_UPDATE_DIFF_N",
       ]
     ]
   ]
-  );
+  );*)
+
 (*
   DISCH_TAC >>
   Cases_on `a` >| [
