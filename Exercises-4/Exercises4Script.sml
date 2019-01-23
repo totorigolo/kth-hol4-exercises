@@ -180,6 +180,8 @@ val num2arrayIndex_REWRS = store_thm ("num2arrayIndex_REWRS", ``
 (* YOU SHOULD WORK FROM HERE ON                   *)
 (**************************************************)
 
+open simpLib;
+
 (* Define a datatype for arrays storing values of type 'a. *)
 val _ = Datatype `array = Leaf | Node array ('a option) array`
 
@@ -209,12 +211,18 @@ val LOOKUP_def = Define `LOOKUP a n = ILOOKUP a (num2arrayIndex n)`
 val UPDATE_def = Define `UPDATE v a n = IUPDATE v a (num2arrayIndex n)`
 val REMOVE_def = Define `REMOVE a n = IREMOVE a (num2arrayIndex n)`;
 
-(* Helper definitions & functions *)
-val LOOKUP_LEAF = store_thm ("LOOKUP_LEAF",
-  ``!n. LOOKUP Leaf n = NONE``,
-  REWRITE_TAC[LOOKUP_def, ILOOKUP_def]
-  );
+(* Store the definitions together for easy rewriting *)
+val idef_thms = [
+  EMPTY_ARRAY_def,
+  IREMOVE_def,
+  IGUPDATE_def, IUPDATE_def,
+  ILOOKUP_def
+];
+val idef_ss = list_ss ++ (rewrites idef_thms);
+val def_thms = [LOOKUP_def, UPDATE_def, REMOVE_def];
+val def_ss = idef_ss ++ (rewrites def_thms);
 
+(* Helper definitions & theorems *)
 val VAL_OF_ROOT_def = Define `(VAL_OF_ROOT Leaf = NONE) ∧ (VAL_OF_ROOT (Node _ root _) = root)`;
 val ILOOKUP_ROOT = store_thm ("ILOOKUP_ROOT",
   ``!a. ILOOKUP a [] = VAL_OF_ROOT a``,
@@ -222,355 +230,217 @@ val ILOOKUP_ROOT = store_thm ("ILOOKUP_ROOT",
   );
 
 val GEN_GET_SUBARRAY_def = Define `
-  (GEN_GET_SUBARRAY _ Leaf = Leaf)
-  ∧ (GEN_GET_SUBARRAY F (Node l _ _) = l)
-  ∧ (GEN_GET_SUBARRAY T (Node _ _ r) = r)`;
+    (GEN_GET_SUBARRAY _ Leaf         = Leaf)
+  ∧ (GEN_GET_SUBARRAY F (Node l _ _) = l   )
+  ∧ (GEN_GET_SUBARRAY T (Node _ _ r) = r   )
+`;
 val ILOOKUP_SUBARRAY = store_thm ("ILOOKUP_SUBARRAY",
   ``!a i idx. ILOOKUP a (i::idx) = ILOOKUP (GEN_GET_SUBARRAY i a) idx``,
-  Cases_on `a` >| [
-    REWRITE_TAC[GEN_GET_SUBARRAY_def, ILOOKUP_def],
-    Cases_on `i` >>
-    REWRITE_TAC[GEN_GET_SUBARRAY_def, ILOOKUP_def]
-  ]
-  );
+  Cases_on `a` >>
+  Cases_on `i` >>
+  REWRITE_TAC[GEN_GET_SUBARRAY_def, ILOOKUP_def]
+);
 
-val ILOOKUP_ONLY_LEAF_IS_NONE = store_thm ("ILOOKUP_ONLY_LEAF_IS_NONE",
-  ``∀v h. ILOOKUP (Node Leaf (SOME v) Leaf) (h::_) = NONE``,
-  Cases_on `h` >> REWRITE_TAC[ILOOKUP_def]
-  );
-
-(*
-val SUC_SUBST_ONE = store_thm ("SUC_SUBST_ONE",
-  ``!n. n > 0 ==> SUC (n - 1) = n``,
-  SIMP_TAC arith_ss []
-  );
-*)
-
-(* open arithmeticTheory;
-val ARRAY_INDEX_INJ_NUM = store_thm ("ARRAY_INDEX_INJ_NUM",
-  ``∀s. ?n. s = num2arrayIndex n``,
-  REWRITE_TAC[num2arrayIndex_def] >>
-  Induct_on `s` >| [
-    EXISTS_TAC ``0`` >>
-    SIMP_TAC arith_ss [EVAL ``num2boolList 1``],
-    Cases_on `h` >| [
-      Q.REFINE_EXISTS_TAC `2 * n - 1` >>
-      SIMP_TAC arith_ss [EVAL ``SUC (m - 1)``]
-      EVAL ``SUC (n - 1)``
-
-      EXISTS_TAC ``1``
-      REWRITE_TAC[EVAL ``SUC 1``]
-      REWRITE_TAC[EVAL ``num2boolList 2``]
-      FULL_SIMP_TAC list_ss []
-
-      SUBGOAL_THEN ``num2boolList (SUC 0) = []`` (fn th => ASSUME_TAC th) >> (
-        SIMP_TAC list_ss [num2boolList_REWRS]
-      ) >>
-      RES_TAC
-      FULL_SIMP_TAC list_ss []
-
-      REWRITE_TAC[num2boolList_REWRS]
-      
-    ]
-  ]
-  );
-*)
+val helper_thms = [
+  VAL_OF_ROOT_def, ILOOKUP_ROOT,
+  GEN_GET_SUBARRAY_def, ILOOKUP_SUBARRAY
+]
+val helper_ss = def_ss ++ (rewrites helper_thms);
 
 (* Show a few properties *)
-(* val EMPTY_ARRAY_def = Define `EMPTY_ARRAY : 'a array = Node Leaf NONE Leaf`
-val LOOKUP_EMPTY = store_thm ("LOOKUP_EMPTY",
-  ``!k. LOOKUP EMPTY_ARRAY k = NONE``,
-  REWRITE_TAC[EMPTY_ARRAY_def, LOOKUP_def, ILOOKUP_def] >>
-  REPEAT STRIP_TAC >>
-  Cases_on `(num2arrayIndex k)` >| [
-    REWRITE_TAC[ILOOKUP_def],
-    Cases_on `h` >>
-    REWRITE_TAC[ILOOKUP_def]
-  ]); *)
-val LOOKUP_EMPTY = store_thm ("LOOKUP_EMPTY",
-  ``!k. LOOKUP EMPTY_ARRAY k = NONE``,
-  REWRITE_TAC[EMPTY_ARRAY_def, LOOKUP_def, ILOOKUP_def]
-  );
+(** First, we prove some lemmatas **)
 
-val LOOKUP_UPDATE_SIMPLE = store_thm ("LOOKUP_UPDATE_SIMPLE",
-  ``!v a idx. LOOKUP (UPDATE v a idx) idx = SOME v``,
-  REWRITE_TAC[LOOKUP_def, UPDATE_def, IUPDATE_def] >>
-  REWRITE_TAC[num2arrayIndex_def] >>
-  Induct_on `a` >| [
-    (* ∀v idx. LOOKUP (UPDATE v Leaf idx) idx = SOME v *)
-    Cases_on `(num2boolList (SUC idx))` >| [
-      REWRITE_TAC[IUPDATE_def, ILOOKUP_def, IGUPDATE_def],
-      Cases_on `h` >> REWRITE_TAC[IUPDATE_def, IGUPDATE_def, ILOOKUP_def] >| [
-        (* TODO: Factor this *)
-        Induct_on `t` >| [
-          REWRITE_TAC[IUPDATE_def, ILOOKUP_def, IGUPDATE_def],
-          Cases_on `h` >> ASM_REWRITE_TAC[IUPDATE_def, IGUPDATE_def, ILOOKUP_def]
-        ],
-        Induct_on `t` >| [
-          REWRITE_TAC[IUPDATE_def, ILOOKUP_def, IGUPDATE_def],
-          Cases_on `h` >> ASM_REWRITE_TAC[IUPDATE_def, IGUPDATE_def, ILOOKUP_def]
-        ]
-      ]
-    ],
-    (* ∀ $o v idx. LOOKUP (UPDATE v (Node a $o a') idx) idx = SOME v
-       ------------------------------------
-       0.  ∀v idx. LOOKUP (UPDATE v a idx) idx = SOME v
-       1.  ∀v idx. LOOKUP (UPDATE v a' idx) idx = SOME v *)
-    Cases_on `idx` >| [
-      ASSUME_TAC (EVAL ``SUC 0``) >> ASM_REWRITE_TAC[] >>
-      REWRITE_TAC[num2boolList_def] >>
-      REWRITE_TAC[IGUPDATE_def, LOOKUP_def, ILOOKUP_def],
-      
-      ONCE_REWRITE_TAC[num2boolList_def] >>
-      SIMP_TAC arith_ss [] >>
-      SPEC_TAC (``n: num``, ``n: num``) >>
-      Cases_on `EVEN (SUC (SUC n))` >| [
-        (* idx is (T::) -> right node *)
-        REWRITE_TAC[IGUPDATE_def, ILOOKUP_def] >>
-        (* TODO: Factor this *)
-        Cases_on `SUC (SUC n) DIV 2` >| [
-          REWRITE_TAC[num2boolList_def] >>
-          Cases_on `a'` >> REWRITE_TAC[IUPDATE_def, IGUPDATE_def, ILOOKUP_def],
-          SPEC_TAC (``n': num``, ``idx: num``) >>
-          ASM_REWRITE_TAC[]
-        ],
-        (* idx is (F::) -> left node *)
-        REWRITE_TAC[IGUPDATE_def, ILOOKUP_def] >>
-        Cases_on `SUC (SUC n) DIV 2` >| [
-          REWRITE_TAC[num2boolList_def] >>
-          Cases_on `a` >> REWRITE_TAC[IUPDATE_def, IGUPDATE_def, ILOOKUP_def],
-          SPEC_TAC (``n': num``, ``idx: num``) >>
-          ASM_REWRITE_TAC[]
-        ]
-      ]
-    ]
-  ]
-  );
-
-(* STRIP_ASSUME_TAC (SPEC_ALL num2arrayIndex_INJ_CONTR) >> RES_TAC >> *)
-val num2arrayIndex_INJ_CONTR = store_thm ("num2arrayIndex_INJ_CONTR",
+val num2arrayIndex_boolList_DIFF_EQ = store_thm ("num2arrayIndex_boolList_DIFF_EQ",
   ``!n m. (n ≠ m) ⇔ (num2arrayIndex n ≠ num2arrayIndex m)``,
   REPEAT GEN_TAC >>
   EQ_TAC >| [
     REWRITE_TAC[CONTRAPOS (fst (EQ_IMP_RULE (SPEC_ALL num2arrayIndex_INJ)))],
     REWRITE_TAC[CONTRAPOS (snd (EQ_IMP_RULE (SPEC_ALL num2arrayIndex_INJ)))]
-  ]);
-
-val IG_LOOKUP_UPDATE_DIFF_N = store_thm ("IG_LOOKUP_UPDATE_DIFF_N",
-  ``!n m v a. (n ≠ m ⇒ (ILOOKUP (IGUPDATE v a n) m = ILOOKUP a m))``,
-  Induct_on `n` >>
-
-
-
-
-
-
-
-
-
-
-
-
-
-	DISCH_TAC >>
-  Induct_on `a` >| [
-    UNDISCH_TAC ``n ≠ m: bool list`` >>
-    (* a = Leaf *)
-    (* Cases_on `n` >| [ *)
-    Induct_on `n` >| [
-      (* n = [] *)
-      Cases_on `m` >| [
-        METIS_TAC[],
-        Cases_on `h` >> REWRITE_TAC[IGUPDATE_def, ILOOKUP_def]
-      ],
-      (* n = h::t *)
-      Cases_on `h` >| [
-        REWRITE_TAC[IGUPDATE_def]
-  
-
-        (* n = T::t *)
-        Cases_on `m` >| [
-          (* n = T::t, m = [] *)
-          REWRITE_TAC[IGUPDATE_def, ILOOKUP_def],
-          (* n = T::t, m = h::t' *)
-          cheat
-          Cases_on `h` >| [
-            DISCH_TAC >>
-            Cases_on `n ≠ T::t: bool list` >| [
-              RES_TAC >>
-              REWRITE_TAC[IGUPDATE_def] >>
-              REWRITE_TAC[Once ILOOKUP_def] >>
-              `n ≠ t: bool list` by METIS_TAC[] >>
-              ` (!v. ILOOKUP (IGUPDATE v Leaf n) t)
-              = (!v. ILOOKUP (IGUPDATE v Leaf n) (T::t))` suffices_by METIS_TAC[] >>
-              cheat,
-              FULL_SIMP_TAC list_ss [] >>
-              REPEAT (PAT_X_ASSUM ``_`` (fn _ => ALL_TAC)) >>
-              REWRITE_TAC[IGUPDATE_def, ILOOKUP_def]
-            ]
-            (*
-            * For: Cases_on `n`
-            REWRITE_TAC[IGUPDATE_def, Once ILOOKUP_def] >>
-            DISCH_TAC >>
-            `t ≠ t': bool list` by METIS_TAC[] >>
-            UNDISCH_TAC ``t ≠ t': bool list`` >>
-            PAT_X_ASSUM ``_`` (fn _ => ALL_TAC) >>
-            SUBGOAL_THEN ``ILOOKUP Leaf (T::t') = ILOOKUP Leaf t'``
-              (fn th => SUBST_TAC[th]) >- (
-              REWRITE_TAC[ILOOKUP_def] 
-            ) >>
-            *)
-          ]
-        ],
-        (* n = F::t *)
-        Cases_on `m` >| [
-          (* n = F::t, m = [] *)
-          REWRITE_TAC[IGUPDATE_def, ILOOKUP_def],
-          (* n = F::t, m = h::t' *)
-          cheat
-        ]
-      ]
-    ],
-    (* a = (Node a o a') *)
-    Induct_on `m` >| [
-      REPEAT STRIP_TAC >>
-      Cases_on `n` >| [
-        METIS_TAC[],
-        Cases_on `h` >| [
-          cheat,
-          cheat
-        ]
-      ],
-      REPEAT STRIP_TAC >>
-    ]
-  ]
-	);
-
-
-  (* DISCH_TAC >>
-  Induct_on `a` >| [
-    (* Base case *)
-    (*UNDISCH_TAC ``n ≠ m: bool list`` >>
-    SPEC_TAC (``n: bool list``, ``n: bool list``) >>
-    SPEC_TAC (``m: bool list``, ``m: bool list``) >>
-    *)
-    Induct_on `n` >| [
-      (* Base case *)
-      Cases_on `m` >| [
-        METIS_TAC[num2arrayIndex_INJ],
-        REWRITE_TAC[IGUPDATE_def, ILOOKUP_def] >>
-        Cases_on `h` >> REWRITE_TAC[ILOOKUP_def]
-      ],
-      (* Induction step *)
-      cheat
-    ],
-    (* Induction step *)
-    Cases_on `n` >| [
-      SUBGOAL_THEN ``! $o. IGUPDATE v (Node a o' a') n = a`` (fn _ => ALL_TAC)
-    ]
-
-    Cases_on `n` >| [
-      REWRITE_TAC[IGUPDATE_def] >>
-      Cases_on `m` >| [
-        METIS_TAC[],
-        Cases_on `h` >> ASM_REWRITE_TAC[ILOOKUP_def]
-      ],
-      Cases_on `h` >> REWRITE_TAC[IGUPDATE_def] >| [
-        Cases_on `m` >| [
-          REWRITE_TAC[ILOOKUP_def],
-          Cases_on `h` >| [
-            REWRITE_TAC[ILOOKUP_def]
-          ]
-        ]  
-      ]
-    ]*)
-
-
-    (*Cases_on `h` >| [
-      REPEAT STRIP_TAC >>
-      `num2arrayIndex n = T::v` by ASM_REWRITE_TAC[],
-      PAT_X_ASSUM ``_ = _::_`` (fn th => ONCE_ASM_REWRITE_TAC[th]) >>
-      REWRITE_TAC[IUPDATE_def, IGUPDATE_def] >>
-      Cases_on `num2arrayIndex m` >| [
-        REWRITE_TAC[ILOOKUP_def],
-        Cases_on `h` >| [
-          REWRITE_TAC[Once ILOOKUP_def] >>
-          SUBGOAL_THEN ``ILOOKUP Leaf (T::t) = ILOOKUP Leaf t`` (fn th => REWRITE_TAC[th]) >>
-          REWRITE_TAC[ILOOKUP_def] >>
-          SUBGOAL_THEN ``IGUPDATE (SOME v') Leaf v = IUPDATE v' Leaf v`` (fn th => REWRITE_TAC[th]) >>
-          REWRITE_TAC[IUPDATE_def] >>
-          (* Useless, but I'm so happy to have found this function :D *)
-          Q.MATCH_RENAME_TAC `ILOOKUP (IUPDATE tmp Leaf s) t = _` >>
-          Q.MATCH_RENAME_TAC `ILOOKUP (IUPDATE v Leaf s) t = _` >>
-          SPEC_TAC (``v: 'a``, ``v: 'a``) >>
-          (**)
-          `s ≠ t` by METIS_TAC[num2arrayIndex_INJ] >>
-
-
-
-
-
-
-        , REWRITE_TAC[ILOOKUP_def]
-      ]
-    ]
-  ]
-  );*)
+]);
 
 (*
-  DISCH_TAC >>
-  Cases_on `a` >| [
-    REWRITE_TAC[UPDATE_def, LOOKUP_def, ILOOKUP_def, IUPDATE_def] >>
-    STRIP_ASSUME_TAC (SPEC_ALL num2arrayIndex_INJ_CONTR) >> RES_TAC >>
-    Cases_on `(num2arrayIndex n)` >| [
-      Cases_on `(num2arrayIndex m)` >| [
-        METIS_TAC[],
-        REWRITE_TAC[IGUPDATE_def, ILOOKUP_ONLY_LEAF_IS_NONE]
-      ],
-      Cases_on `(num2arrayIndex m)` >| [
-        Cases_on `h` >> REWRITE_TAC[IGUPDATE_def, ILOOKUP_def],
-        Cases_on `h` >> REWRITE_TAC[IGUPDATE_def] >| [
-          Cases_on `h'` >> REWRITE_TAC[ILOOKUP_def]
-        ]
-      ]
-    ]
+val ARRAY_EQ = store_thm ("ARRAY_EQ", ``
+  !l1 l2 r1 r2 v1 v2. ((l1 = l2) ∧ (r1 = r2) ∧ (v1 = v2)) 
+                    ⇔ ((Node l1 v1 r1) = (Node l2 v2 r2))``,
+  REPEAT STRIP_TAC >>
+  EQ_TAC >| [
+    Cases_on 
   ]
-  ); *)
+);
+*)
+
+val lemmatas_thms = [
+  num2arrayIndex_boolList_DIFF_EQ
+]
+val lemmatas_ss = helper_ss ++ (rewrites lemmatas_thms);
+
+(** Then, we prove some theorems in the not-lifted definitions **)
+
+val ILOOKUP_EMPTY = store_thm ("ILOOKUP_EMPTY",
+  ``!idx. ILOOKUP EMPTY_ARRAY idx = NONE``,
+  SIMP_TAC lemmatas_ss []
+);
+
+val ILOOKUP_UPDATE_SAME = store_thm ("ILOOKUP_UPDATE_SAME",
+  ``!v a idx. ILOOKUP (IGUPDATE v a idx) idx = v``,
+  Induct_on `idx` >> Induct_on `a` >>
+  TRY (Cases_on `h`) >>
+  FULL_SIMP_TAC lemmatas_ss []
+);
+
+val ILOOKUP_UPDATE_DIFF = store_thm ("ILOOKUP_UPDATE_DIFF",
+  ``!v a idx idx'. (idx ≠ idx' ⇒ (ILOOKUP (IGUPDATE v a idx) idx' = ILOOKUP a idx'))``,
+  Induct_on `idx` >> Induct_on `idx'` >> Induct_on `a` >>
+  TRY (Cases_on `h`) >> TRY (Cases_on `h'`) >>
+  FULL_SIMP_TAC lemmatas_ss []
+);
+
+val ILOOKUP_IUPDATE = store_thm ("ILOOKUP_IUPDATE",
+  ``!idx idx' v a. ILOOKUP (IGUPDATE v a idx) idx' =
+      (if (idx = idx') then v else ILOOKUP a idx')``,
+  NTAC 2 GEN_TAC >>
+  Cases_on `idx = idx'` >>
+  FULL_SIMP_TAC lemmatas_ss [ILOOKUP_UPDATE_SAME, ILOOKUP_UPDATE_DIFF]
+);
+
+val ILOOKUP_IREMOVE_SAME = store_thm ("ILOOKUP_IREMOVE_SAME",
+  ``!idx a. ILOOKUP (IREMOVE a idx) idx = NONE``,
+  Induct_on `idx` >> Induct_on `a` >>
+  TRY (Cases_on `h`) >>
+  FULL_SIMP_TAC lemmatas_ss []
+);
+
+val ILOOKUP_IREMOVE_DIFF = store_thm ("ILOOKUP_IREMOVE_DIFF",
+  ``!idx idx' a. idx ≠ idx' ⇒ (ILOOKUP (IREMOVE a idx) idx' = ILOOKUP a idx')``,
+  Induct_on `idx` >> Induct_on `idx'` >> Induct_on `a` >>
+  TRY (Cases_on `h`) >>
+  TRY (Cases_on `h'`) >>
+  FULL_SIMP_TAC lemmatas_ss []
+);
+
+val ILOOKUP_IREMOVE = store_thm ("ILOOKUP_IREMOVE",
+  ``!idx idx' a. ILOOKUP (IREMOVE a idx) idx' =
+       (if (idx = idx') then NONE else ILOOKUP a idx')``,
+  NTAC 2 GEN_TAC >>
+  Cases_on `idx = idx'` >>
+  ASM_SIMP_TAC list_ss [] >> (* TODO: (remove) Needed because of rewrite orders (I think) *)
+  FULL_SIMP_TAC lemmatas_ss [ILOOKUP_IREMOVE_SAME, ILOOKUP_IREMOVE_DIFF]
+);
+
+val IUPDATE_TWICE_EQ = store_thm ("IUPDATE_TWICE_EQ",
+  ``(!v1 v2 idx a. IGUPDATE v1 (IGUPDATE v2 a idx) idx = IGUPDATE v1 a idx)``,
+  Induct_on `idx` >> Induct_on `a` >>
+  TRY (Cases_on `h`) >>
+  FULL_SIMP_TAC lemmatas_ss []
+);
+
+val IUPDATE_IREMOVED_EQ = store_thm ("IUPDATE_IREMOVED_EQ",
+  ``(!v idx a. IGUPDATE v (IREMOVE a idx) idx = IGUPDATE v a idx)``,
+  Induct_on `idx` >> Induct_on `a` >>
+  TRY (Cases_on `h`) >>
+  FULL_SIMP_TAC lemmatas_ss []
+);
+
+val IREMOVE_IUPDATED_EQ = store_thm ("IREMOVE_IUPDATED_EQ",
+  ``(!v idx a. IREMOVE (IGUPDATE v a idx) idx = IREMOVE a idx)``,
+  Induct_on `idx` >> Induct_on `a` >>
+  TRY (Cases_on `h`) >>
+  FULL_SIMP_TAC lemmatas_ss []
+);
+
+val IUPDATE_IREMOVE_EQ = store_thm ("IUPDATE_IREMOVE_EQ", ``
+    (!v w idx a. IGUPDATE v (IGUPDATE w a idx) idx = IGUPDATE v a idx)
+  ∧ (!v   idx a. IGUPDATE v (IREMOVE    a idx) idx = IGUPDATE v a idx)
+  ∧ (!v   idx a. IREMOVE    (IGUPDATE v a idx) idx = IREMOVE    a idx)``,
+  SIMP_TAC lemmatas_ss [IUPDATE_TWICE_EQ, IUPDATE_IREMOVED_EQ, IREMOVE_IUPDATED_EQ]
+);
+
+val IUPDATE_DIFF_EQ = store_thm ("IUPDATE_DIFF_EQ",
+  ``(!v w a idx idx'. idx ≠ idx'
+    ⇒ ((IGUPDATE v (IGUPDATE w a idx') idx) = (IGUPDATE w (IGUPDATE v a idx) idx')))``,
+  (* Induct_on `idx` >> Induct_on `idx'` >> Induct_on `a` >> *)
+  Induct_on `a` >> Induct_on `idx` >> Induct_on `idx'` >>
+  TRY (Cases_on `h`) >>
+  TRY (Cases_on `h'`) >>
+  FULL_SIMP_TAC lemmatas_ss [] >>
+  SPEC_TAC (``idx': bool list``, ``idx': bool list``)
+  
+
+  (*
+  UNDISCH_TAC ``idx ≠ idx': bool list``
+  SPEC_TAC (``idx': bool list``, ``idx': bool list``)
+  ASM_REWRITE_TAC[]
+  REWRITE_TAC[]
+  RW_TAC lemmatas_ss []
+  *)
+);
+
+val IUPDATE_IREMOVE_NEQ = store_thm ("IUPDATE_IREMOVE_NEQ",
+  ``(!v a n m. n ≠ m ⇒ ((IGUPDATE v (IREMOVE a m) n) = (IREMOVE (IGUPDATE v a n) m)))``,
+  FULL_SIMP_TAC lemmatas_ss [...]
+);
+
+val IUPDATE_IREMOVE_NEQ = store_thm ("IUPDATE_IREMOVE_NEQ", ``
+  ``(!v w a n m. n ≠ m ⇒ ((IGUPDATE v (IGUPDATE w a m) n) = (IGUPDATE w (IGUPDATE v a n) m)))``,
+  FULL_SIMP_TAC lemmatas_ss [...]
+);
+
+val IUPDATE_IREMOVE_NEQ = store_thm ("IUPDATE_IREMOVE_NEQ", ``
+    (!v w a n m. n ≠ m ⇒ ((IGUPDATE v (IGUPDATE w a m) n) = (IGUPDATE w (IGUPDATE v a n) m)))
+  ∧ (!v   a n m. n ≠ m ⇒ ((IGUPDATE v (IREMOVE    a m) n) = (IREMOVE    (IGUPDATE v a n) m)))
+  ∧ (!    a n m. n ≠ m ⇒ ((IREMOVE    (IREMOVE    a m) n) = (IREMOVE    (IREMOVE    a n) m)))``,
+  SIMP_TAC lemmatas_ss [...]
+);
+
+val non_lifted_thms = [
+  ILOOKUP_EMPTY,
+  ILOOKUP_UPDATE_SAME, ILOOKUP_UPDATE_DIFF, ILOOKUP_IUPDATE,
+  ILOOKUP_IREMOVE_SAME, ILOOKUP_UPDATE_DIFF, ILOOKUP_IREMOVE,
+  IUPDATE_TWICE_EQ, IUPDATE_IREMOVED_EQ, IREMOVE_IUPDATED_EQ, IUPDATE_IREMOVE_EQ
+]
+val non_lifted_ss = lemmatas_ss ++ (rewrites non_lifted_thms);
+
+(** Finally, the lifted theorems **)
+val LOOKUP_EMPTY = store_thm ("LOOKUP_EMPTY",
+  ``!n. LOOKUP EMPTY_ARRAY n = NONE``,
+  FULL_SIMP_TAC non_lifted_ss []
+);
 
 val LOOKUP_UPDATE = store_thm ("LOOKUP_UPDATE",
   ``!n n' v a. LOOKUP (UPDATE v a n) n' =
        (if (n = n') then SOME v else LOOKUP a n')``,
+  REWRITE_TAC def_thms >>
   NTAC 2 GEN_TAC >>
-  Cases_on `n = n'` >| [
-    ASM_REWRITE_TAC[LOOKUP_UPDATE_SIMPLE],
-    ASM_REWRITE_TAC[] >>
-    UNDISCH_TAC ``n: num ≠ n'`` >>
-    ASM_REWRITE_TAC[LOOKUP_UPDATE_DIFF_N]
-  ]
-  );
+  Cases_on `n = n'` >>
+  (* TODO: Use REVERSE + THEN1/>- ? *)
+  TRY (`num2arrayIndex n ≠ num2arrayIndex n'` by FULL_SIMP_TAC non_lifted_ss []) >>
+  ASM_SIMP_TAC non_lifted_ss [num2arrayIndex_boolList_DIFF_EQ]
+);
 
 val LOOKUP_REMOVE = store_thm ("LOOKUP_REMOVE",
   ``!n n' a. LOOKUP (REMOVE a n) n' =
-       (if (n = n') then NONE else LOOKUP a n')``,
-cheat);
-
+      (if (n = n') then NONE else LOOKUP a n')``,
+  REWRITE_TAC def_thms >>
+  NTAC 2 GEN_TAC >>
+  Cases_on `n = n'` >>
+  (* TODO: Use REVERSE + THEN1/>- ? *)
+  TRY (`num2arrayIndex n ≠ num2arrayIndex n'` by FULL_SIMP_TAC non_lifted_ss []) >>
+  ASM_SIMP_TAC non_lifted_ss [num2arrayIndex_boolList_DIFF_EQ]
+);
 
 val UPDATE_REMOVE_EQ = store_thm ("UPDATE_REMOVE_EQ", ``
-  (!v1 v2 n a. UPDATE v1 (UPDATE v2 a n) n = UPDATE v1 a n) /\
-  (!v n a. UPDATE v (REMOVE a n) n = UPDATE v a n) /\
-  (!v n a. REMOVE (UPDATE v a n) n = REMOVE a n)
-``,
-cheat);
-
+    (!v w n a. UPDATE v (UPDATE w a n) n = UPDATE v a n)
+  ∧ (!v   n a. UPDATE v (REMOVE   a n) n = UPDATE v a n)
+  ∧ (!v   n a. REMOVE   (UPDATE v a n) n = REMOVE   a n)``,
+  SIMP_TAC non_lifted_ss []
+);
 
 val UPDATE_REMOVE_NEQ = store_thm ("UPDATE_REMOVE_NEQ", ``
-  (!v1 v2 a n1 n2. n1 <> n2 ==>
-     ((UPDATE v1 (UPDATE v2 a n2) n1) = (UPDATE v2 (UPDATE v1 a n1) n2))) /\
-  (!v a n1 n2. n1 <> n2 ==>
-     ((UPDATE v (REMOVE a n2) n1) = (REMOVE (UPDATE v a n1) n2))) /\
-  (!a n1 n2. n1 <> n2 ==>
-     ((REMOVE (REMOVE a n2) n1) = (REMOVE (REMOVE a n1) n2)))``,
-cheat);
+    (!v w a n m. n ≠ m ⇒ ((UPDATE v (UPDATE w a m) n) = (UPDATE w (UPDATE v a n) m)))
+  ∧ (!v   a n m. n ≠ m ⇒ ((UPDATE v (REMOVE   a m) n) = (REMOVE   (UPDATE v a n) m)))
+  ∧ (!    a n m. n ≠ m ⇒ ((REMOVE   (REMOVE   a m) n) = (REMOVE   (REMOVE   a n) m)))``,
+  SIMP_TAC non_lifted_ss []
+);
 
 
 val _ = export_theory();
