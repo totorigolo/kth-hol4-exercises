@@ -363,40 +363,42 @@ val IUPDATE_DIFF_EQ = store_thm ("IUPDATE_DIFF_EQ",
   TRY (Cases_on `h`) >>
   TRY (Cases_on `h'`) >>
   FULL_SIMP_TAC lemmatas_ss [] >>
-  SPEC_TAC (``idx': bool list``, ``idx': bool list``)
-  
-
-  (*
-  UNDISCH_TAC ``idx ≠ idx': bool list``
-  SPEC_TAC (``idx': bool list``, ``idx': bool list``)
-  ASM_REWRITE_TAC[]
-  REWRITE_TAC[]
-  RW_TAC lemmatas_ss []
-  *)
+  (* TODO: Why do I have to use this explicitely? *)
+  (* TODO: Add this theorem to the simpset *)
+  ASM_REWRITE_TAC[TypeBase.one_one_of ``: 'a array``]
 );
 
-val IUPDATE_IREMOVE_NEQ = store_thm ("IUPDATE_IREMOVE_NEQ",
-  ``(!v a n m. n ≠ m ⇒ ((IGUPDATE v (IREMOVE a m) n) = (IREMOVE (IGUPDATE v a n) m)))``,
-  FULL_SIMP_TAC lemmatas_ss [...]
+val IUPDATE_IREMOVE_DIFF_EQ = store_thm ("IUPDATE_IREMOVE_DIFF_NEQ",
+  ``(!v a idx idx'. idx ≠ idx'
+    ⇒ ((IGUPDATE v (IREMOVE a idx') idx) = (IREMOVE (IGUPDATE v a idx) idx')))``,
+  Induct_on `a` >> Induct_on `idx` >> Induct_on `idx'` >>
+  TRY (Cases_on `h`) >>
+  TRY (Cases_on `h'`) >>
+  FULL_SIMP_TAC lemmatas_ss []
 );
 
-val IUPDATE_IREMOVE_NEQ = store_thm ("IUPDATE_IREMOVE_NEQ", ``
-  ``(!v w a n m. n ≠ m ⇒ ((IGUPDATE v (IGUPDATE w a m) n) = (IGUPDATE w (IGUPDATE v a n) m)))``,
-  FULL_SIMP_TAC lemmatas_ss [...]
+val IREMOVE_DIFF_EQ = store_thm ("IREMOVE_DIFF_EQ",
+  ``!a idx idx'. idx ≠ idx'
+    ⇒ ((IREMOVE (IREMOVE a idx') idx) = (IREMOVE (IREMOVE a idx) idx'))``,
+  Induct_on `a` >> Induct_on `idx` >> Induct_on `idx'` >>
+  TRY (Cases_on `h`) >>
+  TRY (Cases_on `h'`) >>
+  FULL_SIMP_TAC lemmatas_ss []
 );
 
 val IUPDATE_IREMOVE_NEQ = store_thm ("IUPDATE_IREMOVE_NEQ", ``
     (!v w a n m. n ≠ m ⇒ ((IGUPDATE v (IGUPDATE w a m) n) = (IGUPDATE w (IGUPDATE v a n) m)))
   ∧ (!v   a n m. n ≠ m ⇒ ((IGUPDATE v (IREMOVE    a m) n) = (IREMOVE    (IGUPDATE v a n) m)))
   ∧ (!    a n m. n ≠ m ⇒ ((IREMOVE    (IREMOVE    a m) n) = (IREMOVE    (IREMOVE    a n) m)))``,
-  SIMP_TAC lemmatas_ss [...]
+  SIMP_TAC lemmatas_ss [IUPDATE_DIFF_EQ, IUPDATE_IREMOVE_DIFF_EQ, IREMOVE_DIFF_EQ]
 );
 
 val non_lifted_thms = [
   ILOOKUP_EMPTY,
   ILOOKUP_UPDATE_SAME, ILOOKUP_UPDATE_DIFF, ILOOKUP_IUPDATE,
   ILOOKUP_IREMOVE_SAME, ILOOKUP_UPDATE_DIFF, ILOOKUP_IREMOVE,
-  IUPDATE_TWICE_EQ, IUPDATE_IREMOVED_EQ, IREMOVE_IUPDATED_EQ, IUPDATE_IREMOVE_EQ
+  IUPDATE_TWICE_EQ, IUPDATE_IREMOVED_EQ, IREMOVE_IUPDATED_EQ, IUPDATE_IREMOVE_EQ,
+  IUPDATE_DIFF_EQ, IUPDATE_IREMOVE_DIFF_EQ, IREMOVE_DIFF_EQ, IUPDATE_IREMOVE_NEQ
 ]
 val non_lifted_ss = lemmatas_ss ++ (rewrites non_lifted_thms);
 
@@ -442,6 +444,6 @@ val UPDATE_REMOVE_NEQ = store_thm ("UPDATE_REMOVE_NEQ", ``
   SIMP_TAC non_lifted_ss []
 );
 
-
+(* We're done :) *)
 val _ = export_theory();
 
