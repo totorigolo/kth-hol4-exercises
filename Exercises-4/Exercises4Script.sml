@@ -1,7 +1,10 @@
 (* vim: ts=2:sw=2:textwidth=100
  *)
 
-open HolKernel Parse boolLib bossLib;
+open HolKernel Parse boolLib bossLib mlibUseful;
+
+fun app (l1, l2) = append l1 l2
+infix app
 
 val _ = new_theory "e4_arrays";
 
@@ -55,7 +58,7 @@ val MY_NUM_INDUCT = store_thm ("MY_NUM_INDUCT",
   completeInduct_on `n` >>
   Cases_on `n` >- ( FULL_SIMP_TAC arith_ss [] ) >>
   Cases_on `n'` >> ASM_SIMP_TAC arith_ss []
-  )
+)
 
 val num2boolList_INJ = store_thm ("num2boolList_INJ",
   ``!n. n <> 0 ==> !m. m <> 0 ==> (num2boolList n = num2boolList m) ==> (n = m)``,
@@ -80,7 +83,7 @@ val num2boolList_INJ = store_thm ("num2boolList_INJ",
   ) >>
   `0 < 2` by DECIDE_TAC >>
   METIS_TAC[arithmeticTheory.DIVISION]
-  );
+);
 
 
 
@@ -140,7 +143,7 @@ val arrayIndex2num_inv = store_thm ("arrayIndex2num_inv",
   `0 < boolList2num idx` by METIS_TAC[boolList2num_GT_0] >>
   FULL_SIMP_TAC arith_ss [arithmeticTheory.SUC_PRE] >>
   ASM_SIMP_TAC std_ss [boolList2num_inv]
-  );
+);
 
 
 (* It is also very easy to derive other useful properties. *)
@@ -180,13 +183,11 @@ val num2arrayIndex_REWRS = store_thm ("num2arrayIndex_REWRS", ``
 (* YOU SHOULD WORK FROM HERE ON                   *)
 (**************************************************)
 
-open simpLib;
-
 (* Define a datatype for arrays storing values of type 'a. *)
 val _ = Datatype `array = Leaf | Node array ('a option) array`
 
 (* Define a new, empty array *)
-val EMPTY_ARRAY_def = Define `EMPTY_ARRAY : 'a array = Leaf`
+val EMPTY_ARRAY_def = Define `EMPTY_ARRAY: 'a array = Leaf`
 
 (* Define ILOOKUP, IUPDATE and IREMOVE *)
 val IGUPDATE_def = Define `
@@ -209,7 +210,7 @@ val IREMOVE_def = Define `
 (* With these, we can define the lifted operations *)
 val LOOKUP_def = Define `LOOKUP a n = ILOOKUP a (num2arrayIndex n)`
 val UPDATE_def = Define `UPDATE v a n = IUPDATE v a (num2arrayIndex n)`
-val REMOVE_def = Define `REMOVE a n = IREMOVE a (num2arrayIndex n)`;
+val REMOVE_def = Define `REMOVE a n = IREMOVE a (num2arrayIndex n)`
 
 (* Store the definitions together for easy rewriting *)
 val idef_thms = [
@@ -217,35 +218,35 @@ val idef_thms = [
   IREMOVE_def,
   IGUPDATE_def, IUPDATE_def,
   ILOOKUP_def
-];
-val idef_ss = list_ss ++ (rewrites idef_thms);
-val def_thms = [LOOKUP_def, UPDATE_def, REMOVE_def];
-val def_ss = idef_ss ++ (rewrites def_thms);
+]
+val def_thms = idef_thms app [LOOKUP_def, UPDATE_def, REMOVE_def];
 
 (* Helper definitions & theorems *)
-val VAL_OF_ROOT_def = Define `(VAL_OF_ROOT Leaf = NONE) ∧ (VAL_OF_ROOT (Node _ root _) = root)`;
+val VAL_OF_ROOT_def = Define `
+    (VAL_OF_ROOT Leaf            = NONE)
+  ∧ (VAL_OF_ROOT (Node _ root _) = root)
+`
 val ILOOKUP_ROOT = store_thm ("ILOOKUP_ROOT",
   ``!a. ILOOKUP a [] = VAL_OF_ROOT a``,
   Cases_on `a` >> REWRITE_TAC[ILOOKUP_def, VAL_OF_ROOT_def]
-  );
+)
 
 val GEN_GET_SUBARRAY_def = Define `
     (GEN_GET_SUBARRAY _ Leaf         = Leaf)
   ∧ (GEN_GET_SUBARRAY F (Node l _ _) = l   )
   ∧ (GEN_GET_SUBARRAY T (Node _ _ r) = r   )
-`;
+`
 val ILOOKUP_SUBARRAY = store_thm ("ILOOKUP_SUBARRAY",
   ``!a i idx. ILOOKUP a (i::idx) = ILOOKUP (GEN_GET_SUBARRAY i a) idx``,
   Cases_on `a` >>
   Cases_on `i` >>
   REWRITE_TAC[GEN_GET_SUBARRAY_def, ILOOKUP_def]
-);
+)
 
-val helper_thms = [
+val helper_thms = def_thms app [
   VAL_OF_ROOT_def, ILOOKUP_ROOT,
   GEN_GET_SUBARRAY_def, ILOOKUP_SUBARRAY
-]
-val helper_ss = def_ss ++ (rewrites helper_thms);
+];
 
 (* Show a few properties *)
 (** First, we prove some lemmatas **)
@@ -256,117 +257,103 @@ val num2arrayIndex_boolList_DIFF_EQ = store_thm ("num2arrayIndex_boolList_DIFF_E
   EQ_TAC >| [
     REWRITE_TAC[CONTRAPOS (fst (EQ_IMP_RULE (SPEC_ALL num2arrayIndex_INJ)))],
     REWRITE_TAC[CONTRAPOS (snd (EQ_IMP_RULE (SPEC_ALL num2arrayIndex_INJ)))]
-]);
+])
 
-(*
-val ARRAY_EQ = store_thm ("ARRAY_EQ", ``
-  !l1 l2 r1 r2 v1 v2. ((l1 = l2) ∧ (r1 = r2) ∧ (v1 = v2)) 
-                    ⇔ ((Node l1 v1 r1) = (Node l2 v2 r2))``,
-  REPEAT STRIP_TAC >>
-  EQ_TAC >| [
-    Cases_on 
-  ]
-);
-*)
-
-val lemmatas_thms = [
+val lemmatas_thms = helper_thms app [
   num2arrayIndex_boolList_DIFF_EQ
-]
-val lemmatas_ss = helper_ss ++ (rewrites lemmatas_thms);
+];
 
 (** Then, we prove some theorems in the not-lifted definitions **)
 
 val ILOOKUP_EMPTY = store_thm ("ILOOKUP_EMPTY",
   ``!idx. ILOOKUP EMPTY_ARRAY idx = NONE``,
-  SIMP_TAC lemmatas_ss []
-);
+  SIMP_TAC std_ss lemmatas_thms
+)
 
 val ILOOKUP_UPDATE_SAME = store_thm ("ILOOKUP_UPDATE_SAME",
   ``!v a idx. ILOOKUP (IGUPDATE v a idx) idx = v``,
   Induct_on `idx` >> Induct_on `a` >>
   TRY (Cases_on `h`) >>
-  FULL_SIMP_TAC lemmatas_ss []
-);
+  ASM_SIMP_TAC list_ss lemmatas_thms
+)
 
 val ILOOKUP_UPDATE_DIFF = store_thm ("ILOOKUP_UPDATE_DIFF",
   ``!v a idx idx'. (idx ≠ idx' ⇒ (ILOOKUP (IGUPDATE v a idx) idx' = ILOOKUP a idx'))``,
   Induct_on `idx` >> Induct_on `idx'` >> Induct_on `a` >>
   TRY (Cases_on `h`) >> TRY (Cases_on `h'`) >>
-  FULL_SIMP_TAC lemmatas_ss []
-);
+  ASM_SIMP_TAC list_ss lemmatas_thms
+)
 
 val ILOOKUP_IUPDATE = store_thm ("ILOOKUP_IUPDATE",
   ``!idx idx' v a. ILOOKUP (IGUPDATE v a idx) idx' =
       (if (idx = idx') then v else ILOOKUP a idx')``,
   NTAC 2 GEN_TAC >>
   Cases_on `idx = idx'` >>
-  FULL_SIMP_TAC lemmatas_ss [ILOOKUP_UPDATE_SAME, ILOOKUP_UPDATE_DIFF]
-);
+  ASM_SIMP_TAC std_ss [ILOOKUP_UPDATE_SAME, ILOOKUP_UPDATE_DIFF]
+)
 
 val ILOOKUP_IREMOVE_SAME = store_thm ("ILOOKUP_IREMOVE_SAME",
   ``!idx a. ILOOKUP (IREMOVE a idx) idx = NONE``,
   Induct_on `idx` >> Induct_on `a` >>
   TRY (Cases_on `h`) >>
-  FULL_SIMP_TAC lemmatas_ss []
-);
+  FULL_SIMP_TAC list_ss lemmatas_thms
+)
 
 val ILOOKUP_IREMOVE_DIFF = store_thm ("ILOOKUP_IREMOVE_DIFF",
   ``!idx idx' a. idx ≠ idx' ⇒ (ILOOKUP (IREMOVE a idx) idx' = ILOOKUP a idx')``,
   Induct_on `idx` >> Induct_on `idx'` >> Induct_on `a` >>
   TRY (Cases_on `h`) >>
   TRY (Cases_on `h'`) >>
-  FULL_SIMP_TAC lemmatas_ss []
-);
+  FULL_SIMP_TAC list_ss lemmatas_thms
+)
 
 val ILOOKUP_IREMOVE = store_thm ("ILOOKUP_IREMOVE",
   ``!idx idx' a. ILOOKUP (IREMOVE a idx) idx' =
        (if (idx = idx') then NONE else ILOOKUP a idx')``,
   NTAC 2 GEN_TAC >>
   Cases_on `idx = idx'` >>
-  ASM_SIMP_TAC list_ss [] >> (* TODO: (remove) Needed because of rewrite orders (I think) *)
-  FULL_SIMP_TAC lemmatas_ss [ILOOKUP_IREMOVE_SAME, ILOOKUP_IREMOVE_DIFF]
-);
+  FULL_SIMP_TAC list_ss [ILOOKUP_IREMOVE_SAME, ILOOKUP_IREMOVE_DIFF]
+)
 
 val IUPDATE_TWICE_EQ = store_thm ("IUPDATE_TWICE_EQ",
   ``(!v1 v2 idx a. IGUPDATE v1 (IGUPDATE v2 a idx) idx = IGUPDATE v1 a idx)``,
   Induct_on `idx` >> Induct_on `a` >>
   TRY (Cases_on `h`) >>
-  FULL_SIMP_TAC lemmatas_ss []
-);
+  ASM_SIMP_TAC list_ss lemmatas_thms
+)
 
 val IUPDATE_IREMOVED_EQ = store_thm ("IUPDATE_IREMOVED_EQ",
   ``(!v idx a. IGUPDATE v (IREMOVE a idx) idx = IGUPDATE v a idx)``,
   Induct_on `idx` >> Induct_on `a` >>
   TRY (Cases_on `h`) >>
-  FULL_SIMP_TAC lemmatas_ss []
-);
+  FULL_SIMP_TAC list_ss lemmatas_thms
+)
 
 val IREMOVE_IUPDATED_EQ = store_thm ("IREMOVE_IUPDATED_EQ",
   ``(!v idx a. IREMOVE (IGUPDATE v a idx) idx = IREMOVE a idx)``,
   Induct_on `idx` >> Induct_on `a` >>
   TRY (Cases_on `h`) >>
-  FULL_SIMP_TAC lemmatas_ss []
-);
+  FULL_SIMP_TAC list_ss lemmatas_thms
+)
 
 val IUPDATE_IREMOVE_EQ = store_thm ("IUPDATE_IREMOVE_EQ", ``
     (!v w idx a. IGUPDATE v (IGUPDATE w a idx) idx = IGUPDATE v a idx)
   ∧ (!v   idx a. IGUPDATE v (IREMOVE    a idx) idx = IGUPDATE v a idx)
   ∧ (!v   idx a. IREMOVE    (IGUPDATE v a idx) idx = IREMOVE    a idx)``,
-  SIMP_TAC lemmatas_ss [IUPDATE_TWICE_EQ, IUPDATE_IREMOVED_EQ, IREMOVE_IUPDATED_EQ]
-);
+  SIMP_TAC std_ss [IUPDATE_TWICE_EQ, IUPDATE_IREMOVED_EQ, IREMOVE_IUPDATED_EQ]
+)
 
 val IUPDATE_DIFF_EQ = store_thm ("IUPDATE_DIFF_EQ",
   ``(!v w a idx idx'. idx ≠ idx'
     ⇒ ((IGUPDATE v (IGUPDATE w a idx') idx) = (IGUPDATE w (IGUPDATE v a idx) idx')))``,
-  (* Induct_on `idx` >> Induct_on `idx'` >> Induct_on `a` >> *)
-  Induct_on `a` >> Induct_on `idx` >> Induct_on `idx'` >>
+  Induct_on `idx` >> Induct_on `idx'` >> Induct_on `a` >>
   TRY (Cases_on `h`) >>
   TRY (Cases_on `h'`) >>
-  FULL_SIMP_TAC lemmatas_ss [] >>
+  FULL_SIMP_TAC list_ss lemmatas_thms >>
   (* TODO: Why do I have to use this explicitely? *)
   (* TODO: Add this theorem to the simpset *)
   ASM_REWRITE_TAC[TypeBase.one_one_of ``: 'a array``]
-);
+)
 
 val IUPDATE_IREMOVE_DIFF_EQ = store_thm ("IUPDATE_IREMOVE_DIFF_NEQ",
   ``(!v a idx idx'. idx ≠ idx'
@@ -374,8 +361,8 @@ val IUPDATE_IREMOVE_DIFF_EQ = store_thm ("IUPDATE_IREMOVE_DIFF_NEQ",
   Induct_on `a` >> Induct_on `idx` >> Induct_on `idx'` >>
   TRY (Cases_on `h`) >>
   TRY (Cases_on `h'`) >>
-  FULL_SIMP_TAC lemmatas_ss []
-);
+  FULL_SIMP_TAC list_ss lemmatas_thms
+)
 
 val IREMOVE_DIFF_EQ = store_thm ("IREMOVE_DIFF_EQ",
   ``!a idx idx'. idx ≠ idx'
@@ -383,30 +370,29 @@ val IREMOVE_DIFF_EQ = store_thm ("IREMOVE_DIFF_EQ",
   Induct_on `a` >> Induct_on `idx` >> Induct_on `idx'` >>
   TRY (Cases_on `h`) >>
   TRY (Cases_on `h'`) >>
-  FULL_SIMP_TAC lemmatas_ss []
-);
+  FULL_SIMP_TAC list_ss lemmatas_thms
+)
 
 val IUPDATE_IREMOVE_NEQ = store_thm ("IUPDATE_IREMOVE_NEQ", ``
     (!v w a n m. n ≠ m ⇒ ((IGUPDATE v (IGUPDATE w a m) n) = (IGUPDATE w (IGUPDATE v a n) m)))
   ∧ (!v   a n m. n ≠ m ⇒ ((IGUPDATE v (IREMOVE    a m) n) = (IREMOVE    (IGUPDATE v a n) m)))
   ∧ (!    a n m. n ≠ m ⇒ ((IREMOVE    (IREMOVE    a m) n) = (IREMOVE    (IREMOVE    a n) m)))``,
-  SIMP_TAC lemmatas_ss [IUPDATE_DIFF_EQ, IUPDATE_IREMOVE_DIFF_EQ, IREMOVE_DIFF_EQ]
-);
+  SIMP_TAC std_ss [IUPDATE_DIFF_EQ, IUPDATE_IREMOVE_DIFF_EQ, IREMOVE_DIFF_EQ]
+)
 
-val non_lifted_thms = [
+val non_lifted_thms = lemmatas_thms app [
   ILOOKUP_EMPTY,
   ILOOKUP_UPDATE_SAME, ILOOKUP_UPDATE_DIFF, ILOOKUP_IUPDATE,
   ILOOKUP_IREMOVE_SAME, ILOOKUP_UPDATE_DIFF, ILOOKUP_IREMOVE,
   IUPDATE_TWICE_EQ, IUPDATE_IREMOVED_EQ, IREMOVE_IUPDATED_EQ, IUPDATE_IREMOVE_EQ,
   IUPDATE_DIFF_EQ, IUPDATE_IREMOVE_DIFF_EQ, IREMOVE_DIFF_EQ, IUPDATE_IREMOVE_NEQ
-]
-val non_lifted_ss = lemmatas_ss ++ (rewrites non_lifted_thms);
+];
 
 (** Finally, the lifted theorems **)
 val LOOKUP_EMPTY = store_thm ("LOOKUP_EMPTY",
   ``!n. LOOKUP EMPTY_ARRAY n = NONE``,
-  FULL_SIMP_TAC non_lifted_ss []
-);
+  FULL_SIMP_TAC std_ss non_lifted_thms
+)
 
 val LOOKUP_UPDATE = store_thm ("LOOKUP_UPDATE",
   ``!n n' v a. LOOKUP (UPDATE v a n) n' =
@@ -415,9 +401,9 @@ val LOOKUP_UPDATE = store_thm ("LOOKUP_UPDATE",
   NTAC 2 GEN_TAC >>
   Cases_on `n = n'` >>
   (* TODO: Use REVERSE + THEN1/>- ? *)
-  TRY (`num2arrayIndex n ≠ num2arrayIndex n'` by FULL_SIMP_TAC non_lifted_ss []) >>
-  ASM_SIMP_TAC non_lifted_ss [num2arrayIndex_boolList_DIFF_EQ]
-);
+  TRY (`num2arrayIndex n ≠ num2arrayIndex n'` by FULL_SIMP_TAC std_ss non_lifted_thms) >>
+  ASM_SIMP_TAC std_ss non_lifted_thms
+)
 
 val LOOKUP_REMOVE = store_thm ("LOOKUP_REMOVE",
   ``!n n' a. LOOKUP (REMOVE a n) n' =
@@ -426,23 +412,23 @@ val LOOKUP_REMOVE = store_thm ("LOOKUP_REMOVE",
   NTAC 2 GEN_TAC >>
   Cases_on `n = n'` >>
   (* TODO: Use REVERSE + THEN1/>- ? *)
-  TRY (`num2arrayIndex n ≠ num2arrayIndex n'` by FULL_SIMP_TAC non_lifted_ss []) >>
-  ASM_SIMP_TAC non_lifted_ss [num2arrayIndex_boolList_DIFF_EQ]
-);
+  TRY (`num2arrayIndex n ≠ num2arrayIndex n'` by FULL_SIMP_TAC std_ss non_lifted_thms) >>
+  ASM_SIMP_TAC std_ss non_lifted_thms
+)
 
 val UPDATE_REMOVE_EQ = store_thm ("UPDATE_REMOVE_EQ", ``
     (!v w n a. UPDATE v (UPDATE w a n) n = UPDATE v a n)
   ∧ (!v   n a. UPDATE v (REMOVE   a n) n = UPDATE v a n)
   ∧ (!v   n a. REMOVE   (UPDATE v a n) n = REMOVE   a n)``,
-  SIMP_TAC non_lifted_ss []
-);
+  SIMP_TAC std_ss non_lifted_thms
+)
 
 val UPDATE_REMOVE_NEQ = store_thm ("UPDATE_REMOVE_NEQ", ``
     (!v w a n m. n ≠ m ⇒ ((UPDATE v (UPDATE w a m) n) = (UPDATE w (UPDATE v a n) m)))
   ∧ (!v   a n m. n ≠ m ⇒ ((UPDATE v (REMOVE   a m) n) = (REMOVE   (UPDATE v a n) m)))
   ∧ (!    a n m. n ≠ m ⇒ ((REMOVE   (REMOVE   a m) n) = (REMOVE   (REMOVE   a n) m)))``,
-  SIMP_TAC non_lifted_ss []
-);
+  SIMP_TAC std_ss non_lifted_thms
+)
 
 (* We're done :) *)
 val _ = export_theory();
