@@ -4,7 +4,7 @@
  *
  *)
 
-open boolLib listTheory rich_listTheory;
+open boolLib listTheory rich_listTheory pairTheory pairSyntax;
 
 val IGNORE_ME = "vim's syntax highlighter is buggy";
 
@@ -36,6 +36,8 @@ test_rhs_is (EVAL ``IS_WEAK_SUBLIST_REC [1;2;3;4;5;6;7] [2;5;6]``) T "T case";
 test_rhs_is (EVAL ``IS_WEAK_SUBLIST_REC [1;2;3;4;5;6;7] [2;6;5]``) F "F case";
 test_rhs_is (EVAL ``IS_WEAK_SUBLIST_REC [1;2;3;4;5;6;7] [2;5;6;8]``) F "F case";
 test_rhs_is (EVAL ``IS_WEAK_SUBLIST_REC [1;2;3;4] [1;2;3;4]``) T "Same lists";
+test_rhs_is (EVAL ``IS_WEAK_SUBLIST_REC [1;2;2;4] [2;2]``) T "T with duplicates";
+test_rhs_is (EVAL ``IS_WEAK_SUBLIST_REC [1;2;3;4] [2;2]``) F "F with duplicates";
 
 fun IWSR_METIS_TAC thms = METIS_TAC (IS_WEAK_SUBLIST_REC_def::thms);
 
@@ -50,6 +52,8 @@ val EACH_MEM_OF_SUBLIST_ARE_IN_LIST_REC = prove (
   Induct_on `l1` >> Induct_on `l2` >>
   IWSR_METIS_TAC[MEM]
 );
+
+(** 1.4 Properties **)
 
 val WEAK_SUBLIST_ADD_HEAD_LEFT_REC = prove (
   ``!h l1 l2. IS_WEAK_SUBLIST_REC l1 l2 ==> IS_WEAK_SUBLIST_REC (h::l1) l2``,
@@ -108,7 +112,7 @@ val WS_COMPOSE_L1_REC = prove (
   REPEAT (RW_TAC bool_ss [])
 );
 
-val WEAK_SUBLIST_REMOVE_HEAD_RIGHT = prove (
+val WEAK_SUBLIST_REMOVE_HEAD_RIGHT_REC = prove (
   ``!l1 l2 h. IS_WEAK_SUBLIST_REC l1 (h::l2) ==> IS_WEAK_SUBLIST_REC l1 l2``,
   Induct_on `l1` >> Induct_on `l2` >>
   IWSR_METIS_TAC[]
@@ -132,7 +136,7 @@ val WEAK_SUBLIST_COMPOSE_REC = prove (
     REPEAT STRIP_TAC >| [
       ALL_TAC,
       `IS_WEAK_SUBLIST_REC l1b l2b`
-          by IWSR_METIS_TAC[WEAK_SUBLIST_REMOVE_HEAD_RIGHT]
+          by IWSR_METIS_TAC[WEAK_SUBLIST_REMOVE_HEAD_RIGHT_REC]
     ] >>
     IWSR_METIS_TAC[WEAK_SUBLIST_PREPEND_LIST_LEFT_REC],
 
@@ -152,7 +156,7 @@ val WEAK_SUBLIST_SELF_REC = prove (
   ASM_REWRITE_TAC[IS_WEAK_SUBLIST_REC_def]
 );
 
-val WEAK_SUBLIST_TRANSITIVE = prove (
+val WEAK_SUBLIST_TRANSITIVE_REC = prove (
   ``!l1 l2 l3. IS_WEAK_SUBLIST_REC l1 l2
            ==> IS_WEAK_SUBLIST_REC l2 l3
            ==> IS_WEAK_SUBLIST_REC l1 l3``,
@@ -160,7 +164,7 @@ val WEAK_SUBLIST_TRANSITIVE = prove (
   IWSR_METIS_TAC[WEAK_SUBLIST_ADD_HEAD_LEFT_REC, WEAK_SUBLIST_COMPOSE_REC]
 );
 
-val WEAK_SUBLIST_BOTH_DIR_EQ = prove (
+val WEAK_SUBLIST_BOTH_DIR_EQ_REC = prove (
   ``!l1 l2. IS_WEAK_SUBLIST_REC l1 l2
         ==> IS_WEAK_SUBLIST_REC l2 l1
         ==> (l1 = l2)``,
@@ -170,16 +174,203 @@ val WEAK_SUBLIST_BOTH_DIR_EQ = prove (
 
 (* 1.2 Filter Definition *)
 
+val MASK_FILTER_def = Define `
+  MASK_FILTER mask l = MAP SND (FILTER FST (ZIP (mask, l)))
+`;
+
+val MASK_FILTER_REWR = prove (
+  ``  (MASK_FILTER [] [] = [])
+    ∧ (!m mt h lt. MASK_FILTER (m::mt) (h::lt) =
+                   if m then (h::MASK_FILTER mt lt)
+                        else (   MASK_FILTER mt lt))``,
+  REWRITE_TAC[MASK_FILTER_def, MAP, FILTER, FST, ZIP] >>
+  Cases_on `m` >>
+  REWRITE_TAC[MAP]
+);
+
+test_rhs_is (EVAL ``MASK_FILTER [T;T;T;T] [1;2;3;4]``) ``[1;2;3;4]`` "keep all";
+test_rhs_is (EVAL ``MASK_FILTER [F;F;F;F] [1;2;3;4]``) ``[]: num list`` "keep none";
+test_rhs_is (EVAL ``MASK_FILTER [F;T;F;T] [1;2;3;4]``) ``[2;4]`` "keep some 1";
+test_rhs_is (EVAL ``MASK_FILTER [T;F;T;F] [1;2;3;4]``) ``[1;3]`` "keep some 2";
+test_rhs_is (EVAL ``MASK_FILTER [T;F;F;F] [1;2;3;4]``) ``[1]`` "keep first";
+test_rhs_is (EVAL ``MASK_FILTER [F;F;F;T] [1;2;3;4]``) ``[4]`` "keep last";
+
+val IS_WEAK_SUBLIST_FILTER_def = Define `
+    IS_WEAK_SUBLIST_FILTER l1 l2 = (?mask. (LENGTH mask = LENGTH l1)
+                                         ∧ (MASK_FILTER mask l1 = l2))
+`;
+
+g `IS_WEAK_SUBLIST_FILTER [1;2;3;4] [1;3]`;
+e (REWRITE_TAC[IS_WEAK_SUBLIST_FILTER_def]);
+e (EXISTS_TAC ``[T;F;T;F]``);
+e (SIMP_TAC list_ss [MASK_FILTER_def]);
+drop ();
+
+(*
+ * I hate you, HOL.
+
+fun prove_IWS_FILTER_num l1 l2 mask = prove (
+  mk_anylet ([(``l1: num list``, l1), (``l2: num list``, l2)],
+             ``IS_WEAK_SUBLIST_FILTER (l1: num list) (l2: num list)``),
+  REWRITE_TAC[IS_WEAK_SUBLIST_FILTER_def] >>
+  SIMP_TAC std_ss [LET_THM] (* removes the let *) >>
+  EXISTS_TAC mask >>
+  SIMP_TAC list_ss [MASK_FILTER_def]
+);
+
+fun tg term = set_goal ([], term);
+tg (mk_anylet ([(``l1: num list``, ``[1;2;3;4]``), (``l2: num list``, ``[1;3]``)],
+               ``IS_WEAK_SUBLIST_FILTER (l1: num list) (l2: num list)``));
+list_mk_comb (``IS_WEAK_SUBLIST_FILTER``, [``[1;2;3;4]: num list``, ``[1;3]: num list``]);
+prove_IWS_FILTER ``[1;2;3;4]: num list`` ``[1;3]: num list`` ``[T;F;T;F]: bool list``;
+*)
+
+EVAL ``IS_WEAK_SUBLIST_FILTER [1;2;3;4] [1;3]``;
+
+(*
+test_rhs_is (EVAL ``IS_WEAK_SUBLIST_FILTER [] []``) T "[] and []";
+test_rhs_is (EVAL ``IS_WEAK_SUBLIST_FILTER [_;_;_] []``) T "non-[] and []";
+test_rhs_is (EVAL ``IS_WEAK_SUBLIST_FILTER [1;2;3;4;5;6;7] [2;5;6]``) T "T case";
+test_rhs_is (EVAL ``IS_WEAK_SUBLIST_FILTER [1;2;3;4;5;6;7] [2;6;5]``) F "F case";
+test_rhs_is (EVAL ``IS_WEAK_SUBLIST_FILTER [1;2;3;4;5;6;7] [2;5;6;8]``) F "F case";
+test_rhs_is (EVAL ``IS_WEAK_SUBLIST_FILTER [1;2;3;4] [1;2;3;4]``) T "Same lists";
+test_rhs_is (EVAL ``IS_WEAK_SUBLIST_FILTER [1;2;2;4] [2;2]``) T "T with duplicates";
+test_rhs_is (EVAL ``IS_WEAK_SUBLIST_FILTER [1;2;3;4] [2;2]``) F "F with duplicates";
+*)
+
+fun IWSF_METIS_TAC thms = METIS_TAC (IS_WEAK_SUBLIST_FILTER_def::thms);
+
+val MUST_BE_SMALLER_TO_BE_WEAK_SUBLIST_FILTER = prove (
+  ``!l1 l2. (LENGTH l1 < LENGTH l2) ==> ¬(IS_WEAK_SUBLIST_FILTER l1 l2)``,
+  SIMP_TAC bool_ss [IS_WEAK_SUBLIST_FILTER_def] >>
+  Induct_on `l1` >> Induct_on `l2` >| [
+    SIMP_TAC list_ss [MASK_FILTER_def],
+    SIMP_TAC list_ss [MASK_FILTER_def],
+    SIMP_TAC list_ss [MASK_FILTER_def],
+    REPEAT STRIP_TAC >>
+    Induct_on `mask` >| [
+      SIMP_TAC list_ss [MASK_FILTER_def],
+      REWRITE_TAC[MASK_FILTER_REWR] >>
+      Cases >>
+      FULL_SIMP_TAC list_ss [MASK_FILTER_REWR] >| [
+        METIS_TAC[],
+        RES_TAC >>
+        `LENGTH mask ≠ LENGTH l1 ∨ MASK_FILTER mask l1 ≠ l2` by ASM_REWRITE_TAC[] >>
+        METIS_TAC[]
+      ]
+    ]
+  ]
+);
+
+val WEAK_SUBLIST_EMPTY_FILTER = prove (
+  ``!l. IS_WEAK_SUBLIST_FILTER l []``,
+  Induct_on `l` >| [
+    SIMP_TAC list_ss [IS_WEAK_SUBLIST_FILTER_def, MASK_FILTER_def],
+    REWRITE_TAC[IS_WEAK_SUBLIST_FILTER_def] >>
+    STRIP_TAC >>
+    ASSUME_TAC IS_WEAK_SUBLIST_FILTER_def >>
+    RES_TAC >>
+    EXISTS_TAC ``F::mask`` >>
+    SIMP_TAC list_ss [MASK_FILTER_REWR] >>
+    ASM_REWRITE_TAC[]
+  ]
+);
+
+val TODO = prove (
+  ``!l1 l2 P. IS_WEAK_SUBLIST_FILTER l1 l2 ==> IS_WEAK_SUBLIST_FILTER l1 (FILTER P l2)``,
+  FULL_SIMP_TAC list_ss [IS_WEAK_SUBLIST_FILTER_def, MASK_FILTER_def] >>
+  cheat
+);
+
+val WEAK_SUBLIST_REMOVE_HEAD_RIGHT_FILTER = prove (
+  ``!l1 l2 t. IS_WEAK_SUBLIST_FILTER l1 (t::l2) ==> IS_WEAK_SUBLIST_FILTER l1 l2``,
+  Induct_on `l1` >| [
+    SIMP_TAC list_ss [IS_WEAK_SUBLIST_FILTER_def, MASK_FILTER_def],
+    REPEAT STRIP_TAC >>
+    FULL_SIMP_TAC list_ss [IS_WEAK_SUBLIST_FILTER_def, MASK_FILTER_def] >>
+  ]
 
 
+  Induct_on `l1` >> Induct_on `l2` >| [
+    SIMP_TAC list_ss [IS_WEAK_SUBLIST_FILTER_def, MASK_FILTER_def],
+    SIMP_TAC list_ss [IS_WEAK_SUBLIST_FILTER_def, MASK_FILTER_def],
+    ASM_REWRITE_TAC[WEAK_SUBLIST_EMPTY_FILTER],
+    REPEAT STRIP_TAC >>
+    FULL_SIMP_TAC list_ss [IS_WEAK_SUBLIST_FILTER_def] >>
 
 
+    FULL_SIMP_TAC list_ss [IS_WEAK_SUBLIST_FILTER_def, MASK_FILTER_def] >>
+    RES_TAC
 
 
+    EXISTS_TAC ``T::mask`` >>
+    SIMP_TAC list_ss [] >>
+    FULL_SIMP_TAC list_ss []
+  ]
+);
 
+(** 1.4 Properties **)
 
+val WEAK_SUBLIST_ADD_HEAD_LEFT_FILTER = prove (
+  ``!l1 l2 h. IS_WEAK_SUBLIST_FILTER l1 l2
+      ==> IS_WEAK_SUBLIST_FILTER (h::l1) l2``,
+  Induct_on `l1` >> Induct_on `l2` >| [
+    REWRITE_TAC[IS_WEAK_SUBLIST_FILTER_def] >>
+    FULL_SIMP_TAC list_ss [MASK_FILTER_def] >>
+    REPEAT STRIP_TAC >>
+    EXISTS_TAC ``[F]`` >>
+    SIMP_TAC list_ss [],
 
+    FULL_SIMP_TAC list_ss [IS_WEAK_SUBLIST_FILTER_def, MASK_FILTER_def],
+    ASM_REWRITE_TAC[WEAK_SUBLIST_EMPTY_FILTER],
 
+    REPEAT STRIP_TAC >>
+    `IS_WEAK_SUBLIST_FILTER (h'::l1) l2` by cheat >>
+    RES_TAC >>
+    cheat
+  ]
+);
+
+val WEAK_SUBLIST_PREPEND_LIST_LEFT_FILTER = prove (
+  ``!l1 l2 l. IS_WEAK_SUBLIST_FILTER l1 l2
+      ==> IS_WEAK_SUBLIST_FILTER (l ++ l1) l2``,
+  cheat
+);
+
+val WEAK_SUBLIST_MIDDLE_LEFT_FILTER = prove (
+  ``!l1a l1 l1b l2. IS_WEAK_SUBLIST_FILTER l1 l2
+      ==> IS_WEAK_SUBLIST_FILTER (l1a ++ l1 ++ l1b) l2``,
+  Induct_on `l1` >> Induct_on `l2` >>
+  FULL_SIMP_TAC list_ss [] >>
+  FULL_SIMP_TAC list_ss [IS_WEAK_SUBLIST_FILTER_def] >>
+  cheat
+);
+
+val WEAK_SUBLIST_COMPOSE_FILTER = prove (
+  ``!l1a l1b l2a l2b. IS_WEAK_SUBLIST_FILTER l1a l2a ==> IS_WEAK_SUBLIST_FILTER l1b l2b
+      ==> IS_WEAK_SUBLIST_FILTER (l1a ++ l1b) (l2a ++ l2b)``,
+  (* TODO: Use WEAK_SUBLIST_MIDDLE_LEFT_FILTER *)
+  cheat
+);
+
+val WEAK_SUBLIST_SELF_FILTER = prove (
+  ``!l. IS_WEAK_SUBLIST_FILTER l l``,
+  cheat
+);
+
+val WEAK_SUBLIST_TRANSITIVE_FILTER = prove (
+  ``!l1 l2 l3. IS_WEAK_SUBLIST_FILTER l1 l2
+           ==> IS_WEAK_SUBLIST_FILTER l2 l3
+           ==> IS_WEAK_SUBLIST_FILTER l1 l3``,
+  cheat
+);
+
+val WEAK_SUBLIST_BOTH_DIR_EQ_FILTER = prove (
+  ``!l1 l2. IS_WEAK_SUBLIST_FILTER l1 l2
+        ==> IS_WEAK_SUBLIST_FILTER l2 l1
+        ==> (l1 = l2)``,
+  cheat
+);
 
 
 
