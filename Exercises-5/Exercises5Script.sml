@@ -5,6 +5,7 @@
  *)
 
 open boolLib listTheory rich_listTheory pairTheory pairSyntax;
+open listLib; (* For SNOC_INDUCT_TAC *)
 
 val IGNORE_ME = "vim's syntax highlighter is buggy";
 
@@ -311,39 +312,69 @@ val MASK_FILTER_SHORTER = prove (
 
 val WEAK_SUBLIST_ADD_HEAD_LEFT_FILTER = prove (
   ``!l1 l2 h. IS_WEAK_SUBLIST_FILTER l1 l2 ==> IS_WEAK_SUBLIST_FILTER (h::l1) l2``,
-  Induct_on `l1` >> Induct_on `l2` >| [
-    REWRITE_TAC[IS_WEAK_SUBLIST_FILTER_def] >>
-    FULL_SIMP_TAC list_ss [MASK_FILTER_def] >>
-    REPEAT STRIP_TAC >>
-    EXISTS_TAC ``[F]`` >>
-    SIMP_TAC list_ss [],
-
+  Cases_on `l1` >> Cases_on `l2` >| [
+    REWRITE_TAC[WEAK_SUBLIST_EMPTY_FILTER], 
     FULL_SIMP_TAC list_ss [IS_WEAK_SUBLIST_FILTER_def, MASK_FILTER_def],
-    ASM_REWRITE_TAC[WEAK_SUBLIST_EMPTY_FILTER],
-
-    REPEAT STRIP_TAC >>
-    UNDISCH_TAC ``IS_WEAK_SUBLIST_FILTER (h'::l1) (h::l2)`` >>
+    REWRITE_TAC[WEAK_SUBLIST_EMPTY_FILTER], 
+    GEN_TAC >>
     SIMP_TAC list_ss [IS_WEAK_SUBLIST_FILTER_def] >>
     REPEAT STRIP_TAC >>
     EXISTS_TAC ``F::mask`` >>
-    SIMP_TAC list_ss [MASK_FILTER_REWR] >>
-    ASM_REWRITE_TAC[]
+    FULL_SIMP_TAC list_ss [MASK_FILTER_REWR]
   ]
 );
 
 val WEAK_SUBLIST_PREPEND_LIST_LEFT_FILTER = prove (
   ``!l1 l2 l. IS_WEAK_SUBLIST_FILTER l1 l2 ==> IS_WEAK_SUBLIST_FILTER (l ++ l1) l2``,
-  (* Same than the previous but with SNOC MASK THM (reverse?) *)
-  cheat
+  Induct_on `l` >>
+  FULL_SIMP_TAC list_ss [WEAK_SUBLIST_ADD_HEAD_LEFT_FILTER]
 );
+
+val WEAK_SUBLIST_ADD_AT_END_LEFT_FILTER = prove (
+  ``!l1 l2 t. IS_WEAK_SUBLIST_FILTER l1 l2 ==> IS_WEAK_SUBLIST_FILTER (l1 ++ [t]) l2``,
+  Cases_on `l1` >> Cases_on `l2` >| [
+    REWRITE_TAC[WEAK_SUBLIST_EMPTY_FILTER], 
+    FULL_SIMP_TAC list_ss [IS_WEAK_SUBLIST_FILTER_def, MASK_FILTER_def],
+    REWRITE_TAC[WEAK_SUBLIST_EMPTY_FILTER], 
+    GEN_TAC >>
+    SIMP_TAC list_ss [IS_WEAK_SUBLIST_FILTER_def] >>
+    REPEAT STRIP_TAC >>
+    EXISTS_TAC ``mask ++ [F]`` >>
+    FULL_SIMP_TAC list_ss [MASK_FILTER_def] >>
+    `h::(t ++ [t'']) = (h::t) ++ [t'']` by FULL_SIMP_TAC list_ss [] >>
+    ASM_REWRITE_TAC[] >>
+    `LENGTH mask = LENGTH (h::t)` by FULL_SIMP_TAC list_ss [] >>
+    `ZIP (mask ++ [F], (h::t) ++ [t'']) = (ZIP (mask, h::t)) ++ (ZIP ([F], [t'']))`
+      by FULL_SIMP_TAC list_ss [ZIP_APPEND] >>
+    ASM_REWRITE_TAC[] >>
+    REWRITE_TAC[FILTER_APPEND] >>
+    SIMP_TAC list_ss []
+  ]
+);
+
+val WEAK_SUBLIST_SNOC_LEFT_FILTER = prove (
+  ``!l1 l2 t. IS_WEAK_SUBLIST_FILTER l1 l2 ==> IS_WEAK_SUBLIST_FILTER (SNOC t l1) l2``,
+  SIMP_TAC list_ss [WEAK_SUBLIST_ADD_AT_END_LEFT_FILTER, SNOC_APPEND]
+);
+
+val WEAK_SUBLIST_APPEND_LIST_LEFT_FILTER = prove (
+  ``!l l1 l2. IS_WEAK_SUBLIST_FILTER l1 l2 ==> IS_WEAK_SUBLIST_FILTER (l1 ++ l) l2``,
+  SNOC_INDUCT_TAC >| [
+    SIMP_TAC list_ss [],
+    REWRITE_TAC[APPEND_SNOC] >>
+    FULL_SIMP_TAC list_ss [WEAK_SUBLIST_SNOC_LEFT_FILTER]
+  ]
+);
+
+(* Same than the previous but with SNOC MASK THM (reverse?) *)
 
 val WEAK_SUBLIST_MIDDLE_LEFT_FILTER = prove ( (* TODO *)
   ``!l1a l1 l1b l2. IS_WEAK_SUBLIST_FILTER l1 l2
       ==> IS_WEAK_SUBLIST_FILTER (l1a ++ l1 ++ l1b) l2``,
-  Induct_on `l1` >> Induct_on `l2` >>
-  FULL_SIMP_TAC list_ss [] >>
-  FULL_SIMP_TAC list_ss [IS_WEAK_SUBLIST_FILTER_def] >>
-  cheat
+  SIMP_TAC list_ss [
+    WEAK_SUBLIST_PREPEND_LIST_LEFT_FILTER,
+    WEAK_SUBLIST_APPEND_LIST_LEFT_FILTER
+  ]
 );
 
 val WEAK_SUBLIST_COMPOSE_FILTER = prove ( (* TODO *)
