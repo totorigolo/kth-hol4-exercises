@@ -366,9 +366,7 @@ val WEAK_SUBLIST_APPEND_LIST_LEFT_FILTER = prove (
   ]
 );
 
-(* Same than the previous but with SNOC MASK THM (reverse?) *)
-
-val WEAK_SUBLIST_MIDDLE_LEFT_FILTER = prove ( (* TODO *)
+val WEAK_SUBLIST_MIDDLE_LEFT_FILTER = prove ( (* 1.4.1 *)
   ``!l1a l1 l1b l2. IS_WEAK_SUBLIST_FILTER l1 l2
       ==> IS_WEAK_SUBLIST_FILTER (l1a ++ l1 ++ l1b) l2``,
   SIMP_TAC list_ss [
@@ -377,33 +375,49 @@ val WEAK_SUBLIST_MIDDLE_LEFT_FILTER = prove ( (* TODO *)
   ]
 );
 
-val WEAK_SUBLIST_COMPOSE_FILTER = prove ( (* TODO *)
-  ``!l1a l1b l2a l2b. IS_WEAK_SUBLIST_FILTER l1a l2a ==> IS_WEAK_SUBLIST_FILTER l1b l2b
-      ==> IS_WEAK_SUBLIST_FILTER (l1a ++ l1b) (l2a ++ l2b)``,
-  cheat
+val MASK_FILTER_APPEND = prove (
+  ``!m1 m2 l1 l2. ((LENGTH m1 = LENGTH l1) ∧ (LENGTH m2 = LENGTH l2))
+               ==> ((MASK_FILTER m1 l1) ++ (MASK_FILTER m2 l2)
+                   = MASK_FILTER (m1 ++ m2) (l1 ++ l2))``,
+  REWRITE_TAC[MASK_FILTER_def] >>
+  REPEAT STRIP_TAC >>
+  `MAP SND (FILTER FST (ZIP (m1 ++ m2, l1 ++ l2)))
+    = MAP SND (FILTER FST ((ZIP (m1, l1)) ++ (ZIP (m2, l2))))`
+    by FULL_SIMP_TAC list_ss [ZIP_APPEND] >>
+  ASM_SIMP_TAC list_ss [MAP_APPEND, FILTER_APPEND]
 );
 
-val WEAK_SUBLIST_SELF_FILTER = prove (
+val WEAK_SUBLIST_COMPOSE_FILTER = prove ( (* 1.4.2 *)
+  ``!l1a l1b l2a l2b. IS_WEAK_SUBLIST_FILTER l1a l2a ==> IS_WEAK_SUBLIST_FILTER l1b l2b
+      ==> IS_WEAK_SUBLIST_FILTER (l1a ++ l1b) (l2a ++ l2b)``,
+  REWRITE_TAC[IS_WEAK_SUBLIST_FILTER_def] >>
+  REPEAT STRIP_TAC >>
+  EXISTS_TAC ``(mask ++ mask'): bool list`` >>
+  ASM_SIMP_TAC list_ss [] >> (* proves the LENGTHS *)
+  FULL_SIMP_TAC list_ss [MASK_FILTER_APPEND]
+);
+
+val WEAK_SUBLIST_SELF_FILTER = prove ( (* 1.4.3 *)
   ``!l. IS_WEAK_SUBLIST_FILTER l l``,
   REWRITE_TAC[IS_WEAK_SUBLIST_FILTER_def] >>
   Induct >| [
     EXISTS_TAC ``[]: bool list`` >>
     SIMP_TAC list_ss [MASK_FILTER_REWR],
     STRIP_TAC >>
-    RW_TAC std_ss [] >>
+    RW_TAC std_ss [] >> (* Removes the ∃mask. in the assumtions. *)
     EXISTS_TAC ``T::mask`` >>
     ASM_SIMP_TAC list_ss [MASK_FILTER_REWR]
   ]
 );
 
-val WEAK_SUBLIST_TRANSITIVE_FILTER = prove ( (* TODO *)
+val WEAK_SUBLIST_TRANSITIVE_FILTER = prove ( (* TODO: 1.4.4 *)
   ``!l1 l2 l3. IS_WEAK_SUBLIST_FILTER l1 l2
            ==> IS_WEAK_SUBLIST_FILTER l2 l3
            ==> IS_WEAK_SUBLIST_FILTER l1 l3``,
   cheat
 );
 
-val WEAK_SUBLIST_BOTH_DIR_EQ_FILTER = prove ( (* TODO *)
+val WEAK_SUBLIST_BOTH_DIR_EQ_FILTER = prove ( (* TODO: 1.4.5 *)
   ``!l1 l2. IS_WEAK_SUBLIST_FILTER l1 l2
         ==> IS_WEAK_SUBLIST_FILTER l2 l1
         ==> (l1 = l2)``,
