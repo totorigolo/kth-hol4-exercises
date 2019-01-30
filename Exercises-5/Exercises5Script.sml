@@ -41,6 +41,12 @@ test_rhs_is (EVAL ``IS_WEAK_SUBLIST_REC [1;2;3;4] [2;2]``) F "F with duplicates"
 
 fun IWSR_METIS_TAC thms = METIS_TAC (IS_WEAK_SUBLIST_REC_def::thms);
 
+(*
+ *      --- ---    --- ---
+ *  5. mask = [T;t;t;t;t]
+ *)
+
+
 val MUST_BE_SMALLER_TO_BE_WEAK_SUBLIST_REC = prove (
   ``!l1 l2. (LENGTH l1 < LENGTH l2) ==> ¬(IS_WEAK_SUBLIST_REC l1 l2)``,
   Induct_on `l1` >> Induct_on `l2` >>
@@ -282,6 +288,14 @@ val WEAK_SUBLIST_EMPTY_FILTER = prove (
   ]
 );
 
+val WEAK_SUBLIST_OF_EMPTY_FILTER = prove (
+  ``!l. l ≠ [] ==> ¬(IS_WEAK_SUBLIST_FILTER [] l)``,
+  Induct_on `l` >| [
+    REWRITE_TAC[],
+    SIMP_TAC list_ss [IS_WEAK_SUBLIST_FILTER_def, MASK_FILTER_def]
+  ]
+);
+
 val MASK_FILTER_SHORTER = prove (
   ``!mask l1. (LENGTH mask = LENGTH l1) ⇒ LENGTH (MASK_FILTER mask l1) ≤ LENGTH l1``,
   Induct_on `l1` >> Induct_on `mask` >>
@@ -294,12 +308,144 @@ val MASK_FILTER_SHORTER = prove (
 );
 
 val MASK_FILTER_REMOVE_HEAD = prove (
-  ``!hm mask h1 l1 h2 l2. (MASK_FILTER (hm::mask) (h1::l1) = (h2::l2)) ==> (MASK_FILTER mask l1 = l2)``,
-  Induct_on `l1` >> Induct_on `l2` >> Induct_on `mask` >>
+  ``!hm mask h1 l1 h2 l2. (MASK_FILTER (hm::mask) (h1::l1) = (h2::l2))
+                      ==> (MASK_FILTER      mask       l1  =      l2)``,
+  Induct_on `l1` >> Induct_on `l2` >> Induct_on `mask` >| [
+    SIMP_TAC list_ss [MASK_FILTER_def],
+    REPEAT STRIP_TAC >>
+    RW_TAC (srw_ss()) [MASK_FILTER_REWR]
+    SIMP_TAC (srw_ss()) [MASK_FILTER_def]
+  ]
+);
+
+val WEAK_SUBLIST_REC_FILTER = prove (
+  ``!x y t1 t2. IS_WEAK_SUBLIST_FILTER (x::t1) (y::t2)
+                  = (  ((x = y) ∧ IS_WEAK_SUBLIST_FILTER t1 t2))
+                     ∨ ((x ≠ y) ∧ IS_WEAK_SUBLIST_FILTER t1 (y::t2))``,
+  RW_TAC list_ss [IS_WEAK_SUBLIST_FILTER_def] >>
+  EQ_TAC >>
+  Cases_on `x = y` >>
+  ASM_REWRITE_TAC[] >>
+  REPEAT STRIP_TAC >| [
+    EXISTS_TAC ``(TL_T mask): bool list`` >>
+    Induct_on `mask` >| [
+      FULL_SIMP_TAC list_ss [MASK_FILTER_REWR],
+      GEN_TAC >>
+      DISCH_TAC >>
+      FULL_SIMP_TAC list_ss []
+      RW_TAC list_ss [TL_T_def]
+      FULL_SIMP_TAC list_ss [MASK_FILTER_REWR]
+    ]
+    cheat,
+    cheat,
+    EXISTS_TAC ``T::mask`` >>
+    FULL_SIMP_TAC list_ss [MASK_FILTER_REWR],
+    EXISTS_TAC ``F::mask`` >>
+    FULL_SIMP_TAC list_ss [MASK_FILTER_REWR]
+  ]
+);
+
+val WEAK_SUBLIST_REMOVE_HEAD_RIGHT_FILTER = prove (
+  ``!l1 l2 t. IS_WEAK_SUBLIST_FILTER l1 (t::l2) ==> IS_WEAK_SUBLIST_FILTER l1 l2``,
+  cheat
+);
+  Induct_on `l1` >> Induct_on `l2` >| [
+    SIMP_TAC list_ss [IS_WEAK_SUBLIST_FILTER_def, MASK_FILTER_def],
+    SIMP_TAC list_ss [IS_WEAK_SUBLIST_FILTER_def, MASK_FILTER_def],
+    ASM_REWRITE_TAC[WEAK_SUBLIST_EMPTY_FILTER],
+    REPEAT STRIP_TAC >>
+
+    FULL_SIMP_TAC list_ss [IS_WEAK_SUBLIST_FILTER_def, MASK_FILTER_REWR]
+    `LENGTH mask > 0` by ASM_SIMP_TAC list_ss [] >>
+
+
+
+    FULL_SIMP_TAC list_ss [IS_WEAK_SUBLIST_FILTER_def, MASK_FILTER_def]
+    
+    `h::l2 = MAP SND (FILTER FST (ZIP (mask',h'::l1)))`
+        by FULL_SIMP_TAC list_ss [MAP_FILTER_REMOVE_HEAD]
+
+
+    (*
+     *  ****** t *** :: *** h **** :: ----------------------------l2
+     *  h'::----------------------------------------------------------- l1
+     *
+     *)
+
+
+    FULL_SIMP_TAC list_ss [IS_WEAK_SUBLIST_FILTER_def] >>
+    REPEAT STRIP_TAC >>
+    `LENGTH mask > 0` by ASM_SIMP_TAC list_ss [] >>
+    SUBGOAL_THEN ``?m: bool tmask. mask = m::tmask`` ASSUME_TAC >> (
+      Cases_on `mask` >| [
+        FULL_SIMP_TAC list_ss [],
+        (* Q.MATCH_RENAME_TAC `?m tmask. h::t = m::tmask` *)
+        EXISTS_TAC ``h'': bool`` >>
+        EXISTS_TAC ``t': bool list`` >>
+        REWRITE_TAC[]
+      ]
+    ) >>
+    RW_TAC std_ss [] >>
+    EXISTS_TAC ``F::tmask`` >>
+    EXISTS_TAC ``m::tmask: bool list`` >>
+    SIMP_TAC list_ss [MASK_FILTER_REWR] >>
+
+
+
+
+    FULL_SIMP_TAC list_ss [IS_WEAK_SUBLIST_FILTER_def] >>
+    REPEAT STRIP_TAC >>
+    `LENGTH mask > 0` by ASM_SIMP_TAC list_ss [] >>
+    Q.REFINE_EXISTS_TAC `m::(TL mask)` >>
+
+
+    EXISTS_TAC ``F: bool`` >>
+    ASM_SIMP_TAC list_ss [MASK_FILTER_REWR] >>
+
+
+
+    EXISTS_TAC ``F: bool`` >>
+    ASM_SIMP_TAC list_ss [MASK_FILTER_REWR] >>
+    (*
+    SUBGOAL_THEN ``?m: bool tmask. mask = m::tmask`` ASSUME_TAC >> (
+      Cases_on `mask` >| [
+        FULL_SIMP_TAC list_ss [],
+        EXISTS_TAC ``h'': bool`` >>
+        EXISTS_TAC ``t': bool list`` >>
+        REWRITE_TAC[]
+      ]
+    ) >>
+    *)
+    Q.REFINE_EXISTS_TAC `m::mask` >>
+    EXISTS_TAC ``F: bool`` >>
+    ASM_SIMP_TAC list_ss [] >>
+
+    METIS_TAC[]
+  ]
+);
+
+val MASK_FILTER_REMOVE_HEAD = prove (
+  ``!hm mask h1 l1 h2 l2. (LENGTH mask = LENGTH l1)
+      ==> (MASK_FILTER (hm::mask) (h1::l1) = (h2::l2)) ==> (MASK_FILTER mask l1 = l2)``,
+  Induct_on `l1` >> Induct_on `l2` >>
+  Induct_on `mask` >>
   FULL_SIMP_TAC list_ss [LENGTH, MASK_FILTER_REWR] >>
   RW_TAC list_ss [MASK_FILTER_REWR, MASK_FILTER_def, MASK_FILTER_SHORTER] >>
   FULL_SIMP_TAC list_ss [LENGTH, MASK_FILTER_REWR] >>
   cheat
+  METIS_TAC[]
+
+  
+  REWRITE_TAC[MASK_FILTER_REWR]
+  Cases_on `hm` >| [
+    ASM_REWRITE_TAC[] >>
+    REPEAT STRIP_TAC >>
+    FULL_SIMP_TAC list_ss [],
+    ASM_REWRITE_TAC[] >>
+    REPEAT STRIP_TAC >>
+    ASM_REWRITE_TAC[]
+    `F` by cheat
+  ]
 );
 
 val MASK_FILTER_TL = prove (
@@ -321,24 +467,8 @@ val MASK_FILTER_TL = prove (
   ]
 );
 
-val WEAK_SUBLIST_REMOVE_HEAD_RIGHT_FILTER = prove (
-  ``!l1 l2 t. IS_WEAK_SUBLIST_FILTER l1 (t::l2) ==> IS_WEAK_SUBLIST_FILTER l1 l2``,
-  Induct_on `l1` >> Induct_on `l2` >| [
-    SIMP_TAC list_ss [IS_WEAK_SUBLIST_FILTER_def, MASK_FILTER_def],
-    SIMP_TAC list_ss [IS_WEAK_SUBLIST_FILTER_def, MASK_FILTER_def],
-    ASM_REWRITE_TAC[WEAK_SUBLIST_EMPTY_FILTER],
-    REPEAT STRIP_TAC >>
-    FULL_SIMP_TAC list_ss [IS_WEAK_SUBLIST_FILTER_def] >>
-    EXISTS_TAC ``F::(TL mask)`` >>
-    ASM_SIMP_TAC list_ss [MASK_FILTER_REWR, LENGTH_TL] >>
-    cheat
-  ]
-);
-
 val WEAK_SUBLIST_REMOVE_HEAD_BOTH_FILTER = prove (
   ``!h1 l1 h2 l2. IS_WEAK_SUBLIST_FILTER (h1::l1) (h2::l2) <=> IS_WEAK_SUBLIST_FILTER l1 l2``,
-  Induct_on `l1` >> Induct_on `l2` >>
-  RW_TAC list_ss [IS_WEAK_SUBLIST_FILTER_def, MASK_FILTER_REWR, MASK_FILTER_def] >>
   cheat
 );
 
@@ -368,8 +498,7 @@ val WEAK_SUBLIST_FILTER_FILTER = prove (
 (** 1.4 Properties **)
 
 val WEAK_SUBLIST_ADD_HEAD_LEFT_FILTER = prove (
-  ``!l1 l2 h. IS_WEAK_SUBLIST_FILTER l1 l2
-      ==> IS_WEAK_SUBLIST_FILTER (h::l1) l2``,
+  ``!l1 l2 h. IS_WEAK_SUBLIST_FILTER l1 l2 ==> IS_WEAK_SUBLIST_FILTER (h::l1) l2``,
   Induct_on `l1` >> Induct_on `l2` >| [
     REWRITE_TAC[IS_WEAK_SUBLIST_FILTER_def] >>
     FULL_SIMP_TAC list_ss [MASK_FILTER_def] >>
@@ -379,17 +508,19 @@ val WEAK_SUBLIST_ADD_HEAD_LEFT_FILTER = prove (
 
     FULL_SIMP_TAC list_ss [IS_WEAK_SUBLIST_FILTER_def, MASK_FILTER_def],
     ASM_REWRITE_TAC[WEAK_SUBLIST_EMPTY_FILTER],
-
+    (* SNOC MASK THM (reverse?) *)
     REPEAT STRIP_TAC >>
-    `IS_WEAK_SUBLIST_FILTER (h'::l1) l2` by cheat >>
-    RES_TAC >>
-    cheat
+    UNDISCH_TAC ``IS_WEAK_SUBLIST_FILTER (h'::l1) (h::l2)`` >>
+    SIMP_TAC list_ss [IS_WEAK_SUBLIST_FILTER_def] >>
+    REPEAT STRIP_TAC >>
+    EXISTS_TAC ``F::mask`` >>
+    SIMP_TAC list_ss [MASK_FILTER_REWR] >>
+    ASM_REWRITE_TAC[]
   ]
 );
 
 val WEAK_SUBLIST_PREPEND_LIST_LEFT_FILTER = prove (
-  ``!l1 l2 l. IS_WEAK_SUBLIST_FILTER l1 l2
-      ==> IS_WEAK_SUBLIST_FILTER (l ++ l1) l2``,
+  ``!l1 l2 l. IS_WEAK_SUBLIST_FILTER l1 l2 ==> IS_WEAK_SUBLIST_FILTER (l ++ l1) l2``,
   cheat
 );
 
