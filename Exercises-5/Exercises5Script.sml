@@ -454,20 +454,27 @@ EVAL ``MASK_FILTER (T::m2) []``;
 
 val SPECIAL_MAP_WORKS = prove (
   ``!l m1 m2. (LENGTH l = LENGTH m1)
-        ==> (LENGTH m)
+        ==> (LENGTH (MASK_FILTER m1 l) = LENGTH m2)
         ==> (MASK_FILTER (SPECIAL_MAP m2 m1) l
            = MASK_FILTER m2 (MASK_FILTER m1 l))``,
-  Induct_on `l` >> Induct_on `m1` >> Induct_on `m2` >>
-  FULL_SIMP_TAC list_ss [
-    MASK_FILTER_REWR,
-    SPECIAL_MAP_def,
-    EVAL ``LENGTH (MASK_FILTER [] [])``,
-    SPECIAL_MAP_EMPTY
+  Induct_on `m1` >> Induct_on `m2` >> Induct_on `l` >>
+  REPEAT STRIP_TAC >| [
+    FULL_SIMP_TAC list_ss [SPECIAL_MAP_def],
+    FULL_SIMP_TAC list_ss [SPECIAL_MAP_def],
+    FULL_SIMP_TAC list_ss [EVAL ``LENGTH (MASK_FILTER [] [])``],
+    FULL_SIMP_TAC list_ss [EVAL ``LENGTH (MASK_FILTER [] [])``],
+    FULL_SIMP_TAC list_ss [EVAL ``LENGTH (MASK_FILTER [] [])``],
+    Cases_on `h'` >>
+    FULL_SIMP_TAC list_ss [MASK_FILTER_REWR, SPECIAL_MAP_def] >>
+    REV_FULL_SIMP_TAC list_ss [MASK_FILTER_def] >>
+    FULL_SIMP_TAC list_ss [MASK_FILTER_REWR],
+    FULL_SIMP_TAC list_ss [MASK_FILTER_REWR],
+    Cases_on `h''` >>
+    FULL_SIMP_TAC list_ss [SPECIAL_MAP_def, MASK_FILTER_REWR]
   ]
-  RW_TAC list_ss []
 );
 
-val WEAK_SUBLIST_TRANSITIVE_FILTER = prove ( (* TODO: 1.4.4 *)
+val WEAK_SUBLIST_TRANSITIVE_FILTER = prove ( (* 1.4.4 *)
   ``!l1 l2 l3. IS_WEAK_SUBLIST_FILTER l1 l2
            ==> IS_WEAK_SUBLIST_FILTER l2 l3
            ==> IS_WEAK_SUBLIST_FILTER l1 l3``,
@@ -481,37 +488,7 @@ val WEAK_SUBLIST_TRANSITIVE_FILTER = prove ( (* TODO: 1.4.4 *)
   EXISTS_TAC ``(SPECIAL_MAP (mask': bool list) (mask: bool list)): bool list`` >>
   ASM_REWRITE_TAC[SPECIAL_MAP_LENGTH] (* proves the LENGTHS *) >>
   REWRITE_TAC[MASK_FILTER_def] >>
-  Induct_on `mask` >> Induct_on `mask'` >> Induct_on `l1` >>
-  REPEAT STRIP_TAC >| [
-    FULL_SIMP_TAC list_ss [SPECIAL_MAP_def],
-    FULL_SIMP_TAC list_ss [SPECIAL_MAP_def],
-    FULL_SIMP_TAC list_ss [EVAL ``LENGTH (MASK_FILTER [] [])``],
-    FULL_SIMP_TAC list_ss [EVAL ``LENGTH (MASK_FILTER [] [])``],
-    FULL_SIMP_TAC list_ss [EVAL ``LENGTH (MASK_FILTER [] [])``],
-    Cases_on `h'` >>
-    FULL_SIMP_TAC list_ss [MASK_FILTER_REWR, SPECIAL_MAP_def] >>
-    REV_FULL_SIMP_TAC list_ss [MASK_FILTER_def] >>
-    FULL_SIMP_TAC list_ss [MASK_FILTER_REWR],
-    FULL_SIMP_TAC list_ss [MASK_FILTER_REWR],
-
-
-
-
-    FULL_SIMP_TAC list_ss [MASK_FILTER_REWR] >>
-    (* Cases_on `h'` >> *)
-    Cases_on `h''` >>
-    FULL_SIMP_TAC list_ss [SPECIAL_MAP_def] >| [
-      Cases_on `h'` >>
-      RW_TAC list_ss [SPECIAL_MAP_def, MASK_FILTER_REWR, MASK_FILTER_def] >>
-
-    ]
-
-    RW_TAC list_ss []
-    REV_FULL_SIMP_TAC list_ss [MASK_FILTER_def]
-    RES_TAC
-
-    cheat
-  ]
+  FULL_SIMP_TAC list_ss [SPECIAL_MAP_WORKS]
 );
 
 val WEAK_SUBLIST_BOTH_DIR_EQ_FILTER = prove ( (* TODO: 1.4.5 *)
