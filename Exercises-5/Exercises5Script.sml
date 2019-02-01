@@ -410,11 +410,108 @@ val WEAK_SUBLIST_SELF_FILTER = prove ( (* 1.4.3 *)
   ]
 );
 
+val MAP_IMP = prove (
+  ``!f l1 l2. (l1 = l2) ==> ((MAP f l1) = (MAP f l2))``,
+  SIMP_TAC list_ss []
+);
+
+val FILTER_IMP = prove (
+  ``!f l1 l2. (l1 = l2) ⇒ ((FILTER f l1) = (FILTER f l2))``,
+  SIMP_TAC list_ss []
+);
+
+val ZIP_IMP = prove (
+  ``!x1 x2 y1 y2. ((x1, y1) = (x2, y2)) ⇒ ((ZIP (x1, y1)) = (ZIP (x2, y2)))``,
+  SIMP_TAC list_ss []
+);
+
+val SPECIAL_MAP_def = Define `
+    (SPECIAL_MAP [] l = l)
+  ∧ (SPECIAL_MAP _ [] = [])
+  ∧ (SPECIAL_MAP (v::l1) (T::l2) = v::(SPECIAL_MAP l1 l2))
+  ∧ (SPECIAL_MAP (v::l1) (F::l2) = F::(SPECIAL_MAP (v::l1) l2))
+`;
+
+val SPECIAL_MAP_EMPTY = prove (
+  ``!m. SPECIAL_MAP m [] = []``,
+  Cases >>
+  FULL_SIMP_TAC list_ss [SPECIAL_MAP_def]
+);
+
+EVAL ``SPECIAL_MAP [T;F;T;T] [T;T;T;F;F;T]``;
+EVAL ``SPECIAL_MAP [F;F;F;F] [T;T;T;F;F;T]``;
+EVAL ``SPECIAL_MAP [T;T;T;T] [T;T;T;F;F;T]``;
+EVAL ``SPECIAL_MAP [T;T;T;T;T] [T;T;T;F;F;T]``;
+
+val SPECIAL_MAP_LENGTH = prove (
+  ``!l1 l2. LENGTH (SPECIAL_MAP l1 l2) = LENGTH l2``,
+  Induct_on `l1` >> Induct_on `l2` >>
+  REPEAT Cases >>
+  FULL_SIMP_TAC list_ss [SPECIAL_MAP_def]
+);
+
+EVAL ``MASK_FILTER (T::m2) []``;
+
+val SPECIAL_MAP_WORKS = prove (
+  ``!l m1 m2. (LENGTH l = LENGTH m1)
+        ==> (LENGTH m)
+        ==> (MASK_FILTER (SPECIAL_MAP m2 m1) l
+           = MASK_FILTER m2 (MASK_FILTER m1 l))``,
+  Induct_on `l` >> Induct_on `m1` >> Induct_on `m2` >>
+  FULL_SIMP_TAC list_ss [
+    MASK_FILTER_REWR,
+    SPECIAL_MAP_def,
+    EVAL ``LENGTH (MASK_FILTER [] [])``,
+    SPECIAL_MAP_EMPTY
+  ]
+  RW_TAC list_ss []
+);
+
 val WEAK_SUBLIST_TRANSITIVE_FILTER = prove ( (* TODO: 1.4.4 *)
   ``!l1 l2 l3. IS_WEAK_SUBLIST_FILTER l1 l2
            ==> IS_WEAK_SUBLIST_FILTER l2 l3
            ==> IS_WEAK_SUBLIST_FILTER l1 l3``,
-  cheat
+  REWRITE_TAC[IS_WEAK_SUBLIST_FILTER_def] >>
+  REPEAT STRIP_TAC >>
+  (* HOL is nice enough to let us work with that, to have an idea of the shape
+   * of f. :)
+  EXISTS_TAC ``(MAP (f (mask: bool list) (mask': bool list)) mask): bool list`` >>
+  Q.REFINE_EXISTS_TAC `(MAP (f (mask: bool list) (mask': bool list)) mask): bool list` >>
+  *)
+  EXISTS_TAC ``(SPECIAL_MAP (mask': bool list) (mask: bool list)): bool list`` >>
+  ASM_REWRITE_TAC[SPECIAL_MAP_LENGTH] (* proves the LENGTHS *) >>
+  REWRITE_TAC[MASK_FILTER_def] >>
+  Induct_on `mask` >> Induct_on `mask'` >> Induct_on `l1` >>
+  REPEAT STRIP_TAC >| [
+    FULL_SIMP_TAC list_ss [SPECIAL_MAP_def],
+    FULL_SIMP_TAC list_ss [SPECIAL_MAP_def],
+    FULL_SIMP_TAC list_ss [EVAL ``LENGTH (MASK_FILTER [] [])``],
+    FULL_SIMP_TAC list_ss [EVAL ``LENGTH (MASK_FILTER [] [])``],
+    FULL_SIMP_TAC list_ss [EVAL ``LENGTH (MASK_FILTER [] [])``],
+    Cases_on `h'` >>
+    FULL_SIMP_TAC list_ss [MASK_FILTER_REWR, SPECIAL_MAP_def] >>
+    REV_FULL_SIMP_TAC list_ss [MASK_FILTER_def] >>
+    FULL_SIMP_TAC list_ss [MASK_FILTER_REWR],
+    FULL_SIMP_TAC list_ss [MASK_FILTER_REWR],
+
+
+
+
+    FULL_SIMP_TAC list_ss [MASK_FILTER_REWR] >>
+    (* Cases_on `h'` >> *)
+    Cases_on `h''` >>
+    FULL_SIMP_TAC list_ss [SPECIAL_MAP_def] >| [
+      Cases_on `h'` >>
+      RW_TAC list_ss [SPECIAL_MAP_def, MASK_FILTER_REWR, MASK_FILTER_def] >>
+
+    ]
+
+    RW_TAC list_ss []
+    REV_FULL_SIMP_TAC list_ss [MASK_FILTER_def]
+    RES_TAC
+
+    cheat
+  ]
 );
 
 val WEAK_SUBLIST_BOTH_DIR_EQ_FILTER = prove ( (* TODO: 1.4.5 *)
