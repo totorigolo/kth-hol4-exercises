@@ -5,6 +5,7 @@
  *)
 
 open boolLib listTheory rich_listTheory pairTheory pairSyntax;
+open bossLib;
 open listLib; (* For SNOC_INDUCT_TAC *)
 
 val IGNORE_ME = "vim's syntax highlighter is buggy";
@@ -491,16 +492,214 @@ val WEAK_SUBLIST_TRANSITIVE_FILTER = prove ( (* 1.4.4 *)
   FULL_SIMP_TAC list_ss [SPECIAL_MAP_WORKS]
 );
 
+val MASK_FILTER_ALL_TRUE_1 = prove (
+  ``!m l. (LENGTH m = LENGTH l) ==> (MASK_FILTER m l = l) ==> EVERY ($= T) m``,
+  Induct_on `m` >> Induct_on `l` >| [
+    FULL_SIMP_TAC list_ss [MASK_FILTER_REWR],
+    FULL_SIMP_TAC list_ss [MASK_FILTER_REWR],
+    FULL_SIMP_TAC list_ss [MASK_FILTER_REWR, EVERY_MEM],
+    FULL_SIMP_TAC list_ss [MASK_FILTER_REWR, EVERY_MEM] >>
+    RW_TAC list_ss [] >| [
+      METIS_TAC[],
+      `LENGTH (MASK_FILTER m l) ≤ LENGTH l` by METIS_TAC[MASK_FILTER_SHORTER] >>
+      `LENGTH (h::l) = SUC (LENGTH l)` by FULL_SIMP_TAC list_ss [] >>
+      `LENGTH (MASK_FILTER m l) < LENGTH (h::l)` by DECIDE_TAC >>
+      `LENGTH (MASK_FILTER m l) ≠ LENGTH (h::l)` by DECIDE_TAC >>
+      `!l1 l2. LENGTH l1 ≠ LENGTH l2 ==> l1 ≠ l2` by METIS_TAC[LIST_EQ] >>
+      METIS_TAC[]
+    ]
+  ]
+);
+
+val MASK_FILTER_ALL_TRUE_2 = prove (
+  ``!m l. (LENGTH m = LENGTH l) ==> (EVERY ($= T) m) ==> (MASK_FILTER m l = l)``,
+  Induct_on `m` >> Induct_on `l` >>
+  FULL_SIMP_TAC list_ss [MASK_FILTER_REWR]
+);
+
+val MASK_FILTER_ALL_TRUE = prove (
+  ``!m l. (LENGTH m = LENGTH l) ==> ((MASK_FILTER m l = l) <=> EVERY ($= T) m)``,
+  METIS_TAC[MASK_FILTER_ALL_TRUE_1, MASK_FILTER_ALL_TRUE_2]
+);
+
+val MASK_FILTER_MEM_F_EQ_NON_EQ = prove (
+  ``!m l. (LENGTH m = LENGTH l) ==> (MEM F m <=> (MASK_FILTER m l ≠ l))``,
+  REPEAT STRIP_TAC >>
+  ASSUME_TAC MASK_FILTER_ALL_TRUE >>
+  RES_TAC >>
+  FULL_SIMP_TAC list_ss [EVERY_MEM, EXISTS_MEM]
+);
+
+val MASK_FILTER_INJ = prove (
+  ``!m l1 l2. (LENGTH l1 = LENGTH m) ==> (LENGTH l2 = LENGTH m)
+          ==> (MASK_FILTER m l1 = l2) ==> (l1 = l2)``,
+  Induct_on `l1` >> Induct_on `l2` >> Induct_on `m` >>
+  NTAC 7 (FULL_SIMP_TAC list_ss [MASK_FILTER_REWR]) >>
+  REPEAT STRIP_TAC >| [
+    Cases_on `h` >>
+    FULL_SIMP_TAC list_ss [] >>
+    `LENGTH (MASK_FILTER m l1) ≤ LENGTH l1` by METIS_TAC[MASK_FILTER_SHORTER] >>
+    `LENGTH (h'::l2) = SUC (LENGTH l1)` by FULL_SIMP_TAC list_ss [] >>
+    `LENGTH (MASK_FILTER m l1) ≠ LENGTH (h'::l2)` by DECIDE_TAC >>
+    `!l1 l2. LENGTH l1 ≠ LENGTH l2 ==> l1 ≠ l2` by METIS_TAC[LIST_EQ] >>
+    METIS_TAC[],
+    RES_TAC >>
+    Cases_on `h` >| [
+      FULL_SIMP_TAC list_ss [] >>
+      `LENGTH (MASK_FILTER m l1) = LENGTH m` by FULL_SIMP_TAC list_ss [] >>
+      METIS_TAC[],
+      FULL_SIMP_TAC list_ss [] >>
+      `LENGTH (MASK_FILTER m l1) ≤ LENGTH l1` by FULL_SIMP_TAC list_ss [MASK_FILTER_SHORTER] >>
+      `LENGTH (h'::l2) = SUC (LENGTH l1)` by ASM_SIMP_TAC list_ss [] >>
+      `LENGTH (MASK_FILTER m l1) ≠ LENGTH (h'::l2)` by DECIDE_TAC >>
+      METIS_TAC[LIST_EQ]
+    ]
+  ]
+);
+
+val LIST_HAVE_UNIQUE_LENGTH = prove (
+  ``!l. (!m: bool list. LENGTH m = LENGTH l) ==> F``,
+  REPEAT STRIP_TAC >>
+  `LENGTH [T] = LENGTH l` by METIS_TAC[] >>
+  `LENGTH [T;T] = LENGTH l` by METIS_TAC[] >>
+  ASSUME_TAC (EVAL ``LENGTH [T]``) >>
+  ASSUME_TAC (EVAL ``LENGTH [T;T]``) >>
+  `1 = 2` by DECIDE_TAC >>
+  FULL_SIMP_TAC arith_ss []
+);
+
+val MASK_FILTER_INJ_IMP_LENGTH = prove (
+  ``!m l1 l2. (MASK_FILTER m l1 = l2) ==> (LENGTH m = LENGTH l1)``,
+  Induct_on `l1` >> Induct_on `l2` >> Induct_on `m` >| [
+    FULL_SIMP_TAC list_ss [MASK_FILTER_REWR],
+
+    cheat,
+    
+    FULL_SIMP_TAC list_ss [MASK_FILTER_REWR],
+
+    FULL_SIMP_TAC list_ss [MASK_FILTER_REWR] >>
+    REPEAT STRIP_TAC >>
+    EVAL ``MASK_FILTER (h::m) []``
+    MASK_FILTER_SHORTER
+    cheat,
+
+    FULL_SIMP_TAC list_ss [MASK_FILTER_REWR] >>
+    METIS_TAC[LIST_HAVE_UNIQUE_LENGTH],
+    FULL_SIMP_TAC list_ss [MASK_FILTER_REWR],
+    FULL_SIMP_TAC list_ss [MASK_FILTER_REWR] >>
+    METIS_TAC[LIST_HAVE_UNIQUE_LENGTH],
+    FULL_SIMP_TAC list_ss [MASK_FILTER_REWR]
+  ]
+);
+
+val MASK_FILTER_TWICE_EQ_IMP_EQ = prove (
+  ``!m1 m2 l. (LENGTH m1 = LENGTH (MASK_FILTER m2 l)) ==> (LENGTH m2 = LENGTH l)
+          ==> (MASK_FILTER m1 (MASK_FILTER m2 l) = l) ==> (MASK_FILTER m2 l = l)``,
+  REPEAT STRIP_TAC >>
+  ASSUME_TAC MASK_FILTER_ALL_TRUE >>
+  FULL_SIMP_TAC list_ss [EVERY_MEM] >>
+  CCONTR_TAC >>
+  FULL_SIMP_TAC list_ss [] >>
+  `MASK_FILTER m2 l ≠ l` by METIS_TAC[MASK_FILTER_MEM_F_EQ_NON_EQ] >>
+  SUBGOAL_THEN ``MASK_FILTER m2 l = l`` ASSUME_TAC >- (
+    ASSUME_TAC MASK_FILTER_INJ >>
+    `LENGTH (MASK_FILTER m2 l) = LENGTH m1` by METIS_TAC[MASK_FILTER_INJ_IMP_LENGTH] >>
+    `LENGTH l = LENGTH m1` by METIS_TAC[MASK_FILTER_INJ_IMP_LENGTH] >>
+    METIS_TAC[]
+  ) >>
+  METIS_TAC[]
+);
+
 val WEAK_SUBLIST_BOTH_DIR_EQ_FILTER = prove ( (* TODO: 1.4.5 *)
   ``!l1 l2. IS_WEAK_SUBLIST_FILTER l1 l2
         ==> IS_WEAK_SUBLIST_FILTER l2 l1
         ==> (l1 = l2)``,
-  cheat
+  REWRITE_TAC[IS_WEAK_SUBLIST_FILTER_def] >>
+  REPEAT STRIP_TAC >>
+  `MASK_FILTER mask' l2 = l2` suffices_by FULL_SIMP_TAC list_ss [] >>
+  `EVERY ($<=> T) mask'` suffices_by METIS_TAC[MASK_FILTER_ALL_TRUE] >>
+  SIMP_TAC list_ss [EVERY_MEM] >>
+  CCONTR_TAC >>
+  `MEM F mask'` by FULL_SIMP_TAC list_ss [] >>
+  `MASK_FILTER mask' l2 ≠ l2` by METIS_TAC[MASK_FILTER_MEM_F_EQ_NON_EQ] >>
+  `l2 = MASK_FILTER mask (MASK_FILTER mask' l2)` by RW_TAC list_ss [] >>
+  `LENGTH (MASK_FILTER mask' l2) = LENGTH mask` by RW_TAC list_ss [] >>
+  `l2 = MASK_FILTER mask' l2` by METIS_TAC[MASK_FILTER_TWICE_EQ_IMP_EQ] >>
+  METIS_TAC[]
 );
+(*
+  REWRITE_TAC[IS_WEAK_SUBLIST_FILTER_def] >>
+  REPEAT STRIP_TAC >>
+  `l1 = MASK_FILTER mask l1` suffices_by METIS_TAC[] >>
+  ASSUME_TAC MASK_FILTER_ALL_TRUE >>
+  FULL_SIMP_TAC list_ss []
+  RES_TAC >>
+  CCONTR_TAC >>
+
+  METIS_TAC[MASK_FILTER_ALL_TRUE]
+
+
+  SUBGOAL_THEN ``!l m. l = MASK_FILTER m l`` (fn th => METIS_TAC[th]) >>
+  Induct_on `l` >> Induct_on `m` >>
+  TRY (Cases_on `h`) >>
+  TRY (Cases_on `h'`) >>
+  FULL_SIMP_TAC list_ss [MASK_FILTER_REWR] >>
+
+
+
+  REWRITE_TAC[IS_WEAK_SUBLIST_FILTER_def] >>
+  REPEAT STRIP_TAC >>
+  SUBGOAL_THEN ``(mask = mask': bool list) ⇒ (EVERY ($= T) mask)`` ASSUME_TAC >- (
+    DISCH_TAC >>
+    CCONTR_TAC >>
+    FULL_SIMP_TAC list_ss [EXISTS_MEM] >>
+    `MEM F mask'` by METIS_TAC[] >>
+    `l2 <> MASK_FILTER mask (MASK_FILTER mask' l2)` suffices_by METIS_TAC[] >>
+    FULL_SIMP_TAC list_ss [MASK_FILTER_def] >>
+    cheat
+  ) >>
+  RW_TAC list_ss []
+
+  ASSUME_TAC MASK_FILTER_ALL_TRUE_bis
+  RES_TAC >>
+  SUBGOAL_THEN ``EVERY ($= T) mask'`` ASSUME_TAC >- (
+    FULL_SIMP_TAC list_ss [EVERY_MEM] >>
+    CCONTR_TAC >>
+    FULL_SIMP_TAC list_ss [] >>
+    `mask ≠ mask'` by METIS_TAC[]
+    `mask ≠ mask'` suffices_by METIS_TAC[]
+
+    cheat
+  ) >>
+  METIS_TAC[]
+
+  REWRITE_TAC[IS_WEAK_SUBLIST_FILTER_def] >>
+  REPEAT STRIP_TAC >>
+  RW_TAC list_ss [] >>
+  ASSUME_TAC MASK_FILTER_ALL_TRUE >>
+  RES_TAC >>
+  CCONTR_TAC >>
+  `¬(EVERY ($<=> T) mask')` by METIS_TAC[] >>
+  `MEM F mask'` by FULL_SIMP_TAC list_ss [EXISTS_MEM] >>
+  ASSUME_TAC MASK_FILTER_MEM_F_IMP_NON_EQ >>
+  `` by METIS_TAC[] >>
+  METIS_TAC[]
+
+  REWRITE_TAC[IS_WEAK_SUBLIST_FILTER_def] >>
+  REPEAT STRIP_TAC >>
+  `MASK_FILTER mask' l2 = l2` suffices_by FULL_SIMP_TAC list_ss [] >>
+  `EVERY ($<=> T) mask'` suffices_by METIS_TAC[MASK_FILTER_ALL_TRUE] >>
+  SIMP_TAC list_ss [EVERY_MEM] >>
+  CCONTR_TAC >>
+  `MEM F mask'` by FULL_SIMP_TAC list_ss [] >>
+  `MASK_FILTER mask' l2 ≠ l2` by METIS_TAC[MASK_FILTER_MEM_F_EQ_NON_EQ] >>
+  `l2 = MASK_FILTER mask (MASK_FILTER mask' l2)` by RW_TAC list_ss [] >>
+  METIS_TAC[MASK_FILTER_TWICE_EQ_IMP_EQ]
+);
+*)
 
 (* 1.3. Equivalence Proof *)
 
-(*
 val IS_WEAK_SUBLIST_REC_EQ_FILTER = prove (
   ``IS_WEAK_SUBLIST_REC = IS_WEAK_SUBLIST_FILTER``,
   (* REWRITE_TAC[FUN_EQ_THM] >> *)
@@ -512,7 +711,7 @@ val IS_WEAK_SUBLIST_REC_EQ_FILTER = prove (
     MASK_FILTER_REMOVE_HEAD
   ]
 );
-*)
+
 
 
 
