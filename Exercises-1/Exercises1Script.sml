@@ -26,7 +26,7 @@ fun append xs [] = xs
 fun rev [] = []
   | rev (x::xs) = append (rev xs) [x]
 
-fun revAppend(xs, ys) = append (rev xs) ys
+fun revAppend (xs, ys) = append (rev xs) ys
 
 fun exists f [] = false
   | exists f (x::xs) = f(x) orelse exists f xs
@@ -73,8 +73,8 @@ length (append (x::xs) l2)
       Write down similar definitions for rev and append using only revAppend.
 *)
 
-fun rev l = revAppend(l, [])
-fun append l1 l2 = revAppend( revAppend(l1, []), l2 )
+fun rev l = revAppend (l, [])
+fun append l1 l2 = revAppend (revAppend (l1, []), l2)
 
 (*
 2.2 Making Change

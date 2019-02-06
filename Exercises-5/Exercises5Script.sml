@@ -263,7 +263,8 @@ val MUST_BE_SMALLER_TO_BE_WEAK_SUBLIST_FILTER = prove (
       FULL_SIMP_TAC list_ss [MASK_FILTER_REWR] >| [
         METIS_TAC[],
         RES_TAC >>
-        `LENGTH mask ≠ LENGTH l1 ∨ l2 ≠ MASK_FILTER mask l1` by ASM_REWRITE_TAC[] >>
+        `LENGTH mask ≠ LENGTH l1 ∨ l2 ≠ MASK_FILTER mask l1`
+            by ASM_REWRITE_TAC[] >>
         METIS_TAC[]
       ]
     ]
@@ -293,7 +294,9 @@ val WEAK_SUBLIST_OF_EMPTY_FILTER = prove (
 );
 
 val MASK_FILTER_SHORTER = prove (
-  ``!mask l1. (LENGTH mask = LENGTH l1) ⇒ LENGTH (MASK_FILTER mask l1) ≤ LENGTH l1``,
+  ``!mask l1. (LENGTH mask = LENGTH l1)
+             ⇒ LENGTH (MASK_FILTER mask l1) ≤ LENGTH l1
+  ``,
   Induct_on `l1` >> Induct_on `mask` >>
   SIMP_TAC list_ss [LENGTH, MASK_FILTER_REWR] >>
   REPEAT STRIP_TAC >>
@@ -304,7 +307,10 @@ val MASK_FILTER_SHORTER = prove (
 );
 
 val MASK_FILTER_SHORTER2 = prove (
-  ``!m l1 l2. (LENGTH m = LENGTH l1) ==> (MASK_FILTER m l1 = l2) ==> (LENGTH l2 <= LENGTH l1)``,
+  ``!m l1 l2. (LENGTH m = LENGTH l1)
+          ==> (MASK_FILTER m l1 = l2)
+          ==> (LENGTH l2 <= LENGTH l1)
+  ``,
   Induct_on `l1` >- FULL_SIMP_TAC list_ss [MASK_FILTER_def] >>
   Induct_on `l2` >- FULL_SIMP_TAC list_ss [MASK_FILTER_def] >>
   Induct_on `m` >- FULL_SIMP_TAC list_ss [MASK_FILTER_def] >>
@@ -312,15 +318,22 @@ val MASK_FILTER_SHORTER2 = prove (
   `LENGTH m = LENGTH l1` by FULL_SIMP_TAC list_ss [] >>
   Cases_on `h` >| [
     FULL_SIMP_TAC list_ss [MASK_FILTER_REWR] >>
-    `LENGTH (MASK_FILTER m l1) = LENGTH l2` by FULL_SIMP_TAC list_ss [] >>
-    `LENGTH (MASK_FILTER m l1) ≤ LENGTH l1` by FULL_SIMP_TAC list_ss [MASK_FILTER_SHORTER] >>
+    `LENGTH (MASK_FILTER m l1) = LENGTH l2`
+        by FULL_SIMP_TAC list_ss [] >>
+    `LENGTH (MASK_FILTER m l1) ≤ LENGTH l1`
+        by FULL_SIMP_TAC list_ss [MASK_FILTER_SHORTER] >>
     DECIDE_TAC,
     FULL_SIMP_TAC list_ss [MASK_FILTER_REWR] >>
-    `LENGTH (MASK_FILTER m l1) = LENGTH (h'::l2)` by FULL_SIMP_TAC list_ss [] >>
-    `LENGTH (MASK_FILTER m l1) ≤ LENGTH l1` by FULL_SIMP_TAC list_ss [MASK_FILTER_SHORTER] >>
-    `LENGTH (h'::l2) ≤ LENGTH (MASK_FILTER m l1)` by FULL_SIMP_TAC list_ss [] >>
-    `LENGTH l2 < LENGTH (h'::l2)` by FULL_SIMP_TAC list_ss [] >>
-    `LENGTH l2 < LENGTH (MASK_FILTER m l1)` by DECIDE_TAC >>
+    `LENGTH (MASK_FILTER m l1) = LENGTH (h'::l2)`
+        by FULL_SIMP_TAC list_ss [] >>
+    `LENGTH (MASK_FILTER m l1) ≤ LENGTH l1`
+        by FULL_SIMP_TAC list_ss [MASK_FILTER_SHORTER] >>
+    `LENGTH (h'::l2) ≤ LENGTH (MASK_FILTER m l1)`
+        by FULL_SIMP_TAC list_ss [] >>
+    `LENGTH l2 < LENGTH (h'::l2)`
+        by FULL_SIMP_TAC list_ss [] >>
+    `LENGTH l2 < LENGTH (MASK_FILTER m l1)`
+        by DECIDE_TAC >>
     DECIDE_TAC
   ]
 );
@@ -366,7 +379,8 @@ val WEAK_SUBLIST_ADD_AT_END_LEFT_FILTER = prove (
     REPEAT STRIP_TAC >>
     EXISTS_TAC ``mask ++ [F]`` >>
     FULL_SIMP_TAC list_ss [MASK_FILTER_def] >>
-    `h::(t ++ [t'']) = (h::t) ++ [t'']` by FULL_SIMP_TAC list_ss [] >>
+    `h::(t ++ [t'']) = (h::t) ++ [t'']`
+        by FULL_SIMP_TAC list_ss [] >>
     ASM_REWRITE_TAC[] >>
     `LENGTH mask = LENGTH (h::t)` by FULL_SIMP_TAC list_ss [] >>
     `ZIP (mask ++ [F], (h::t) ++ [t'']) = (ZIP (mask, h::t)) ++ (ZIP ([F], [t'']))`
@@ -552,10 +566,12 @@ val MASK_FILTER_INJ = prove (
     RES_TAC >>
     Cases_on `h` >| [
       FULL_SIMP_TAC list_ss [] >>
-      `LENGTH (MASK_FILTER m l1) = LENGTH m` by FULL_SIMP_TAC list_ss [] >>
+      `LENGTH (MASK_FILTER m l1) = LENGTH m`
+          by FULL_SIMP_TAC list_ss [] >>
       METIS_TAC[],
       FULL_SIMP_TAC list_ss [] >>
-      `LENGTH (MASK_FILTER m l1) ≤ LENGTH l1` by FULL_SIMP_TAC list_ss [MASK_FILTER_SHORTER] >>
+      `LENGTH (MASK_FILTER m l1) ≤ LENGTH l1`
+          by FULL_SIMP_TAC list_ss [MASK_FILTER_SHORTER] >>
       `LENGTH (h'::l2) = SUC (LENGTH l1)` by ASM_SIMP_TAC list_ss [] >>
       `LENGTH (MASK_FILTER m l1) ≠ LENGTH (h'::l2)` by DECIDE_TAC >>
       METIS_TAC[LIST_EQ]
@@ -636,13 +652,15 @@ val IS_WEAK_SUBLIST_REC_EQ_FILTER = prove (
   REWRITE_TAC[FUN_EQ_THM] >>
   Induct_on `x` >> Induct_on `x'` >| [
     EQ_TAC >>
-    SIMP_TAC list_ss [IS_WEAK_SUBLIST_REC_def, IS_WEAK_SUBLIST_FILTER_def, MASK_FILTER_REWR],
+    SIMP_TAC list_ss [
+      IS_WEAK_SUBLIST_REC_def, IS_WEAK_SUBLIST_FILTER_def, MASK_FILTER_REWR],
 
     REPEAT STRIP_TAC >>
     FULL_SIMP_TAC list_ss [IS_WEAK_SUBLIST_REC_def] >>
     METIS_TAC[WEAK_SUBLIST_ADD_HEAD_LEFT_FILTER],
 
-    FULL_SIMP_TAC list_ss [IS_WEAK_SUBLIST_REC_def, IS_WEAK_SUBLIST_FILTER_def, MASK_FILTER_REWR],
+    FULL_SIMP_TAC list_ss [
+      IS_WEAK_SUBLIST_REC_def, IS_WEAK_SUBLIST_FILTER_def, MASK_FILTER_REWR],
 
     REPEAT STRIP_TAC >>
     EQ_TAC >| [
@@ -671,13 +689,16 @@ val IS_WEAK_SUBLIST_REC_EQ_FILTER = prove (
         `IS_WEAK_SUBLIST_FILTER x' x` by METIS_TAC[] >>
         `IS_WEAK_SUBLIST_REC x' x` by METIS_TAC[] >>
         Cases_on `h = h'` >| [
-          `IS_WEAK_SUBLIST_REC [h] [h']` by FULL_SIMP_TAC list_ss [IS_WEAK_SUBLIST_REC_def] >>
-          `IS_WEAK_SUBLIST_REC ([h] ++ x') ([h'] ++ x)` by METIS_TAC[WEAK_SUBLIST_COMPOSE_REC] >>
+          `IS_WEAK_SUBLIST_REC [h] [h']`
+              by FULL_SIMP_TAC list_ss [IS_WEAK_SUBLIST_REC_def] >>
+          `IS_WEAK_SUBLIST_REC ([h] ++ x') ([h'] ++ x)`
+              by METIS_TAC[WEAK_SUBLIST_COMPOSE_REC] >>
           FULL_SIMP_TAC list_ss [],
           ASSUME_TAC WEAK_SUBLIST_REMOVE_HEAD_LEFT_FILTER >>
           RES_TAC >>
           `IS_WEAK_SUBLIST_REC x' (h'::x)` by METIS_TAC[] >>
-          `IS_WEAK_SUBLIST_REC (h::x') (h'::x)` by METIS_TAC[WEAK_SUBLIST_ADD_HEAD_LEFT_REC]
+          `IS_WEAK_SUBLIST_REC (h::x') (h'::x)`
+              by METIS_TAC[WEAK_SUBLIST_ADD_HEAD_LEFT_REC]
         ],
         `(h'::x = MASK_FILTER tm x') ∧ (LENGTH tm = LENGTH x')`
             by FULL_SIMP_TAC list_ss [MASK_FILTER_REWR] >>
